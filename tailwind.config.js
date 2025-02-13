@@ -8,8 +8,9 @@ export default {
   ],
   theme: {
     extend: {
-      spacing: {
-        '2.5': '0.625rem',
+      fontFamily: {
+        sans: ['Inter', 'ui-sans-serif', 'system-ui'],
+        heading: ['Poppins', 'ui-sans-serif', 'system-ui'],
       },
     },
   },
