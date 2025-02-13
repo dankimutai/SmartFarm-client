@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom';
+import FarmLandScape from '../../assets/farm-1.jpg';
+import FarmField from '../../assets/farm-2.jpg';
 
 export const BlogSection = () => {
   return (
@@ -11,7 +13,7 @@ export const BlogSection = () => {
           <div className="lg:col-span-2">
             <div className="relative rounded-xl overflow-hidden group">
               <img 
-                src="/farm-landscape.jpg" 
+                src={FarmLandScape} 
                 alt="Farm Landscape" 
                 className="w-full h-[400px] object-cover transition-transform duration-300 group-hover:scale-105"
               />
@@ -56,7 +58,7 @@ export const BlogSection = () => {
             {/* Featured Article Card */}
             <div className="relative rounded-xl overflow-hidden group h-[200px]">
               <img 
-                src="/farm-field.jpg" 
+                src={FarmField}
                 alt="Farm Field" 
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               />

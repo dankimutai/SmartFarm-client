@@ -1,18 +1,35 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { Button } from '../Button';
+import { DropdownMenu } from '../DropdownMenu';
 import { FaFacebookF, FaTwitter, FaInstagram, FaLinkedinIn } from 'react-icons/fa';
 import { HiMail, HiLocationMarker } from 'react-icons/hi';
-import { RiPlantLine, RiStoreLine, RiCommunityLine, RiCustomerService2Line } from 'react-icons/ri';
+import { RiPlantLine, RiStoreLine, RiBookLine, RiTruckLine, RiFileListLine } from 'react-icons/ri';
 
 export const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const mainNavItems = [
-    { path: '/', label: 'Home', icon: <RiPlantLine className="mr-2" /> },
-    { path: '/marketplace', label: 'Marketplace', icon: <RiStoreLine className="mr-2" /> },
-    { path: '/community', label: 'Community', icon: <RiCommunityLine className="mr-2" /> },
-    { path: '/support', label: 'Support', icon: <RiCustomerService2Line className="mr-2" /> },
+    { 
+      path: '/marketplace', 
+      label: 'Marketplace', 
+      icon: <RiStoreLine className="w-5 h-5" /> 
+    },
+    { 
+      path: '/knowledge', 
+      label: 'Knowledge Hub', 
+      icon: <RiBookLine className="w-5 h-5" /> 
+    },
+    { 
+      path: '/logistics', 
+      label: 'Logistics', 
+      icon: <RiTruckLine className="w-5 h-5" /> 
+    }
+  ];
+
+  const orderItems = [
+    { label: 'Track Order', link: '/track-order' },
+    { label: 'Order History', link: '/orders' }
   ];
 
   return (
@@ -60,15 +77,29 @@ export const Navbar = () => {
             {/* Desktop Menu */}
             <div className="hidden md:flex items-center space-x-8">
               {mainNavItems.map((item) => (
-                <Link
+                <NavLink
                   key={item.path}
                   to={item.path}
-                  className="flex items-center text-gray-700 hover:text-emerald-600 transition-colors"
+                  className={({ isActive }) => `
+                    flex items-center space-x-2 text-gray-700 hover:text-emerald-600 transition-colors
+                    ${isActive ? 'text-emerald-600' : ''}
+                  `}
                 >
                   {item.icon}
-                  {item.label}
-                </Link>
+                  <span>{item.label}</span>
+                </NavLink>
               ))}
+              
+              <DropdownMenu
+                title={
+                  <div className="flex items-center space-x-2">
+                    <RiFileListLine className="w-5 h-5" />
+                    <span>Orders</span>
+                  </div>
+                }
+                items={orderItems}
+              />
+
               <div className="flex items-center space-x-3">
                 <Button 
                   variant="outline" 
@@ -106,15 +137,34 @@ export const Navbar = () => {
           {isMobileMenuOpen && (
             <div className="md:hidden pb-4 space-y-2">
               {mainNavItems.map((item) => (
-                <Link
+                <NavLink
                   key={item.path}
                   to={item.path}
-                  className="flex items-center px-4 py-2 text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                  className={({ isActive }) => `
+                    flex items-center space-x-2 px-4 py-2 text-gray-700 hover:text-emerald-600 
+                    hover:bg-emerald-50 rounded-lg transition-colors
+                    ${isActive ? 'text-emerald-600 bg-emerald-50' : ''}
+                  `}
                 >
                   {item.icon}
-                  {item.label}
-                </Link>
+                  <span>{item.label}</span>
+                </NavLink>
               ))}
+              
+              {/* Mobile Orders Menu */}
+              <div className="px-4 py-2">
+                <div className="font-medium text-gray-700 mb-2">Orders</div>
+                {orderItems.map((item) => (
+                  <Link
+                    key={item.link}
+                    to={item.link}
+                    className="block py-2 pl-8 text-gray-600 hover:text-emerald-600"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+
               <div className="grid grid-cols-2 gap-2 px-4 mt-4">
                 <Button 
                   variant="outline" 

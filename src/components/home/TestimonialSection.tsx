@@ -1,6 +1,9 @@
 // src/components/home/TestimonialSection.tsx
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import David from '../../assets/David Kimani.jpg';
+import Mary from '../../assets/Mary Wanjiku.jpg';
+import Sarah from '../../assets/Sarah Johnson.jpg';
 
 interface Testimonial {
   id: number;
@@ -12,31 +15,31 @@ interface Testimonial {
 }
 
 const testimonials: Testimonial[] = [
-  {
-    id: 1,
-    name: "Sarah Johnson",
-    role: "Small-Scale Farmer",
-    company: "Green Valley Farms",
-    image: "/testimonials/farmer1.jpg",
-    quote: "SmartFarm has transformed how I manage my farm. The platform's data insights and direct market access have increased my profits by 40% in just six months."
-  },
-  {
-    id: 2,
-    name: "David Kimani",
-    role: "Agricultural Supplier",
-    company: "Agri Solutions Ltd",
-    image: "/testimonials/supplier1.jpg",
-    quote: "The platform's efficiency in connecting farmers with suppliers has revolutionized our distribution process. We've seen a 60% increase in rural market reach."
-  },
-  {
-    id: 3,
-    name: "Mary Wanjiku",
-    role: "Cooperative Leader",
-    company: "Kilimo Cooperative",
-    image: "/testimonials/leader1.jpg",
-    quote: "SmartFarm's knowledge sharing features have empowered our cooperative members to adopt better farming practices and access better markets."
-  }
-];
+    {
+      id: 1,
+      name: "Sarah Johnson",
+      role: "Small-Scale Farmer",
+      company: "Green Valley Farms",
+      image: Sarah, // Use the imported image directly
+      quote: "SmartFarm has transformed how I manage my farm. The platform's data insights and direct market access have increased my profits by 40% in just six months."
+    },
+    {
+      id: 2,
+      name: "David Kimani",
+      role: "Agricultural Supplier",
+      company: "Agri Solutions Ltd",
+      image: David, // Use the imported image directly
+      quote: "The platform's efficiency in connecting farmers with suppliers has revolutionized our distribution process. We've seen a 60% increase in rural market reach."
+    },
+    {
+      id: 3,
+      name: "Mary Wanjiku",
+      role: "Cooperative Leader",
+      company: "Kilimo Cooperative",
+      image: Mary, // Use the imported image directly
+      quote: "SmartFarm's knowledge sharing features have empowered our cooperative members to adopt better farming practices and access better markets."
+    }
+  ];
 
 export const TestimonialSection = () => {
   const [currentIndex, setCurrentIndex] = useState(0);

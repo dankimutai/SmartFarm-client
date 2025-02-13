@@ -1,4 +1,6 @@
 import { Button } from '../common/Button';
+import HeroFarm from '../../assets/hero-farm.jpg'
+import AppPreview from '../../assets/smartfarm-mockup.svg'
 
 export const HeroSection = () => {
   return (
@@ -7,7 +9,7 @@ export const HeroSection = () => {
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-gradient-to-r from-emerald-900/90 to-black/70 z-10" />
         <img 
-          src="/hero-farm.jpg" 
+          src={HeroFarm} 
           alt="Modern farming" 
           className="w-full h-full object-cover"
         />
@@ -73,7 +75,7 @@ export const HeroSection = () => {
         <div className="hidden lg:block absolute right-4 bottom-0 w-[400px] h-[600px]">
           <div className="relative w-full h-full">
             <img 
-              src="/app-preview.png" 
+              src={AppPreview}
               alt="SmartFarm App" 
               className="absolute bottom-0 right-0 max-w-full h-auto"
             />
