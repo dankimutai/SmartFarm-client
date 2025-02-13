@@ -1,11 +1,23 @@
-import './App.css';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { MainLayout } from './Layouts/MainLayout';
+import { HomePage } from './components/home/HomePage';
+
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <MainLayout />,
+    errorElement: <div>404 Not Found</div>,
+    children: [
+      {
+        path: '',
+        element: <HomePage />,
+      },
+    ],
+  },
+]);
 
 function App() {
-  return <>
-  <h1 className="text-5xl font-bold underline">
-    Hello world!
-  </h1>
-  </>;
+  return <RouterProvider router={router} />;
 }
 
 export default App;
