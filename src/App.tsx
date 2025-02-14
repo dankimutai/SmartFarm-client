@@ -3,18 +3,30 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from './store/store';
-import {MainLayout} from './Layouts/MainLayout';
-import {DashboardLayout} from './Layouts/DashboardLayout';
-import{ HomePage} from './components/home/HomePage';
-import {LoginPage }from './pages/auth/LoginPage';
-import {RegisterPage }from './pages/auth/RegisterPage';
-import {ForgotPasswordPage} from './pages/auth/ForgotPasswordPage';
+import { MainLayout } from './Layouts/MainLayout';
+import { DashboardLayout } from './Layouts/DashboardLayout';
+import { HomePage } from './components/home/HomePage';
+import { LoginPage } from './pages/auth/LoginPage';
+import { RegisterPage } from './pages/auth/RegisterPage';
+import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
+
+// Admin imports
 import AdminDashboard from './pages/dashboard/AdminDashboard';
 import UsersManagement from './pages/admin/UsersManagement';
 import ProductsManagement from './pages/admin/ProductsManagement';
 import OrdersManagement from './pages/admin/OrdersManagement';
 import Settings from './pages/admin/Settings';
 import NotFound from './components/common/NotFound';
+
+// Farmer imports
+import FarmerDashboard from './pages/dashboard/FarmerDashboard';
+import FarmerProducts from './pages/farmer/ProductManagement';
+import FarmerOrders from './pages/farmer/OrdersManagement';
+import FarmerAnalytics from './pages/farmer/Analytics';
+import FarmerProfile from './pages/farmer/Profile';
+import FarmerSettings from './pages/farmer/Settings';
+import FarmerCrops from './pages/farmer/CropManagement';
+import FarmerDashboardLayout from './Layouts/FarmerDashboardLayout';
 
 const router = createBrowserRouter([
   {
@@ -23,14 +35,14 @@ const router = createBrowserRouter([
     errorElement: <NotFound />,
     children: [
       {
-        index: true, // Use index instead of empty path
+        index: true,
         element: <HomePage />,
       },
     ],
   },
   {
     path: '/auth',
-    element: <MainLayout />, // Wrap auth routes in MainLayout if needed
+    element: <MainLayout />,
     children: [
       {
         path: 'login',
@@ -47,7 +59,7 @@ const router = createBrowserRouter([
     ],
   },
   {
-    path: '/admin', // Protect all admin routes
+    path: '/admin',
     children: [
       {
         element: <DashboardLayout />,
@@ -71,6 +83,44 @@ const router = createBrowserRouter([
           {
             path: 'settings',
             element: <Settings />,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    path: '/farmer',
+    children: [
+      {
+        element: <FarmerDashboardLayout />,
+        children: [
+          {
+            path: 'dashboard',
+            element: <FarmerDashboard />,
+          },
+          {
+            path: 'crops',
+            element: <FarmerCrops />,
+          },
+          {
+            path: 'products',
+            element: <FarmerProducts />,
+          },
+          {
+            path: 'orders',
+            element: <FarmerOrders />,
+          },
+          {
+            path: 'analytics',
+            element: <FarmerAnalytics />,
+          },
+          {
+            path: 'profile',
+            element: <FarmerProfile />,
+          },
+          {
+            path: 'settings',
+            element: <FarmerSettings />,
           },
         ],
       },
