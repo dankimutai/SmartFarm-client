@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { Button } from '../Button';
 import { DropdownMenu } from '../DropdownMenu';
 import { FaFacebookF, FaTwitter, FaInstagram, FaLinkedinIn } from 'react-icons/fa';
@@ -8,6 +8,7 @@ import { RiPlantLine, RiStoreLine, RiBookLine, RiTruckLine, RiFileListLine } fro
 
 export const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();
 
   const mainNavItems = [
     { 
@@ -31,6 +32,10 @@ export const Navbar = () => {
     { label: 'Track Order', link: '/track-order' },
     { label: 'Order History', link: '/orders' }
   ];
+
+  const handleLogin = () => {
+    navigate('/auth/login');
+  };
 
   return (
     <header className="sticky top-0 z-50">
@@ -105,6 +110,7 @@ export const Navbar = () => {
                   variant="outline" 
                   size="sm"
                   className="border-emerald-600 text-emerald-600 hover:bg-emerald-50"
+                  onClick={handleLogin}
                 >
                   Login
                 </Button>
@@ -170,6 +176,7 @@ export const Navbar = () => {
                   variant="outline" 
                   size="sm"
                   className="border-emerald-600 text-emerald-600"
+                  onClick={handleLogin}
                 >
                   Login
                 </Button>
