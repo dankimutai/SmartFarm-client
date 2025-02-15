@@ -38,6 +38,7 @@ import PurchaseHistory from './pages/buyer/PurchaseHistory';
 import BuyerAnalytics from './pages/buyer/BuyerAnalytics';
 import BuyerMessages from './pages/buyer/BuyerMessages';
 import BuyerProfile from './pages/buyer/BuyerProfile';
+import FarmerMessages from './pages/farmer/Messages';
 
 const router = createBrowserRouter([
   {
@@ -133,6 +134,10 @@ const router = createBrowserRouter([
             path: 'settings',
             element: <FarmerSettings />,
           },
+          {
+            path: 'messages',
+            element: <FarmerMessages/>
+          }
         ],
       },
     ],
