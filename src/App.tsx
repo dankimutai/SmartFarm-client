@@ -28,6 +28,17 @@ import FarmerSettings from './pages/farmer/Settings';
 import FarmerCrops from './pages/farmer/CropManagement';
 import FarmerDashboardLayout from './Layouts/FarmerDashboardLayout';
 
+//Buyer imports
+import BuyerDashboardLayout from './Layouts/BuyerDashBoardLayout';
+import BuyerDashboard from './pages/dashboard/BuyerDashBoard';
+import BuyerMarketplace from './pages/buyer/MarketPlace';
+import BuyerOrders from './pages/buyer/BuyerOrders';
+import TrackOrders from './pages/buyer/TrackOrders';
+import PurchaseHistory from './pages/buyer/PurchaseHistory';
+import BuyerAnalytics from './pages/buyer/BuyerAnalytics';
+import BuyerMessages from './pages/buyer/BuyerMessages';
+import BuyerProfile from './pages/buyer/BuyerProfile';
+
 const router = createBrowserRouter([
   {
     path: '/',
@@ -126,6 +137,53 @@ const router = createBrowserRouter([
       },
     ],
   },
+  {
+    path: '/buyer',
+    children: [
+      {
+        element: <BuyerDashboardLayout/>,
+        children: [
+          {
+            path: 'dashboard',
+            element: <BuyerDashboard/>,
+          },
+          {
+            path: 'marketplace',
+            element: <BuyerMarketplace/>
+          },
+          {
+            path: 'orders',
+            element: <BuyerOrders/>
+          },
+          {
+            path: 'track',
+            element: <TrackOrders/>
+          },
+          {
+            path: 'history',
+            element: <PurchaseHistory/>
+          },
+          {
+            path: 'analytics',
+            element: <BuyerAnalytics/>
+          },
+          {
+          path: "messages",
+          element: <BuyerMessages/>
+          },
+          {
+           path: "profile",
+           element: <BuyerProfile/>
+          },
+          {
+            path: 'settings',
+            element: <Settings/>
+          }
+        ]
+      }
+    ]
+     
+  }
 ]);
 
 function App() {
