@@ -39,6 +39,7 @@ import BuyerAnalytics from './pages/buyer/BuyerAnalytics';
 import BuyerMessages from './pages/buyer/BuyerMessages';
 import BuyerProfile from './pages/buyer/BuyerProfile';
 import FarmerMessages from './pages/farmer/Messages';
+import Marketplace from './components/marketplace/MarketPlace';
 
 const router = createBrowserRouter([
   {
@@ -49,6 +50,10 @@ const router = createBrowserRouter([
       {
         index: true,
         element: <HomePage />,
+      },
+      {
+        path: 'marketplace',
+        element: <Marketplace/>
       },
     ],
   },
