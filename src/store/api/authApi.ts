@@ -1,33 +1,46 @@
+// src/store/api/authApi.ts
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { prodDomain } from '../../utils/authUtils';
-import type { LoginCredentials, RegisterCredentials, AuthResponse } from '../../types/auth.types';
+import { LoginCredentials, RegisterCredentials, AuthResponse } from "../../types/auth.types";
 
-export const authApi = createApi({
-    reducerPath: 'authApi',
-    baseQuery: fetchBaseQuery({
-        baseUrl: prodDomain,
-        prepareHeaders: (headers, { getState: _getState }) => {
-            // You can add common headers here
-            headers.set('Content-Type', 'application/json');
-            return headers;
-        },
+export const api = createApi({
+  reducerPath: 'api',
+  baseQuery: fetchBaseQuery({
+    baseUrl: 'http://localhost:8080',
+    prepareHeaders: (headers, { getState }) => {
+      const token = (getState() as any).auth.token;
+      if (token) {
+        headers.set('authorization', `Bearer ${token}`);
+      }
+      return headers;
+    },
+  }),
+  endpoints: (builder) => ({
+    login: builder.mutation<AuthResponse, LoginCredentials>({
+      query: (credentials) => ({
+        url: '/login',
+        method: 'POST',
+        body: credentials,
+      }),
+      transformErrorResponse: (response: { status: number; data: any }) => {
+        return {
+          status: response.status,
+          message: response.data?.message || 'An error occurred during login'
+        };
+      },
     }),
-    endpoints: (builder) => ({
-        login: builder.mutation<AuthResponse, LoginCredentials>({
-            query: (credentials) => ({
-                url: '/login',
-                method: 'POST',
-                body: credentials
-            })
-        }),
-        register: builder.mutation<AuthResponse, RegisterCredentials>({
-            query: (credentials) => ({
-                url: '/register',
-                method: 'POST',
-                body: credentials
-            })
-        })
-    })
+    register: builder.mutation<AuthResponse, RegisterCredentials>({
+      query: (credentials) => ({
+        url: '/register',
+        method: 'POST',
+        body: credentials,
+      }),
+      transformErrorResponse: (response: { status: number; data: any }) => {
+        return {
+          status: response.status,
+          message: response.data?.message || 'An error occurred during registration'
+        };
+      },
+    }),
+  }),
 });
 
-export const { useLoginMutation, useRegisterMutation } = authApi;

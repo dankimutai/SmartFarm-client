@@ -1,22 +1,34 @@
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import { LoginCredentials } from '../../types/auth.types';
 import { Button } from '../common/Button';
 import { Input } from '../common/Input';
-import { useLoginMutation } from '../../store/api/authApi';
+import {api} from '../../store/api/authApi';
+import { setUser } from '../../store/slices/authSlice';
 import { ArrowLeft } from 'lucide-react';
 
 export const LoginForm = () => {
   const navigate = useNavigate();
-  const [login, { isLoading, error }] = useLoginMutation();
+  const dispatch = useDispatch();
+  const [login, { isLoading, error }] = api.useLoginMutation();
   const { register, handleSubmit, formState: { errors } } = useForm<LoginCredentials>();
 
   const onSubmit = async (data: LoginCredentials) => {
     try {
       const result = await login(data).unwrap();
-      navigate(result.user.role === 'farmer' ? '/farmer/dashboard' : '/buyer/dashboard');
-    } catch (error) {
-      console.error('Login failed:', error);
+      
+      // Store auth data in Redux
+      dispatch(setUser({
+        isAuthenticated: true,
+        user: result.user,
+        token: result.token
+      }));
+
+      // Navigate based on user role
+      navigate(result.user.role === 'farmer' ? '/farmer/dashboard' : '/buyer/dashboard' );
+    } catch (err) {
+      console.error('Login failed:', err);
     }
   };
 
@@ -73,12 +85,14 @@ export const LoginForm = () => {
             error={errors.password?.message}
           />
 
-          <Link
-            to="/auth/forgot-password"
-            className="block text-sm text-emerald-600 hover:text-emerald-500"
-          >
-            Reset password
-          </Link>
+          <div className="flex justify-end">
+            <Link
+              to="/auth/forgot-password"
+              className="text-sm font-medium text-emerald-600 hover:text-emerald-500"
+            >
+              Reset password
+            </Link>
+          </div>
 
           <Button
             type="submit"

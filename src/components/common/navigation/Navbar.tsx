@@ -1,40 +1,90 @@
 import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { Button } from '../Button';
 import { DropdownMenu } from '../DropdownMenu';
 import { FaFacebookF, FaTwitter, FaInstagram, FaLinkedinIn } from 'react-icons/fa';
 import { HiMail, HiLocationMarker } from 'react-icons/hi';
-import { RiPlantLine, RiStoreLine, RiBookLine, RiTruckLine, RiFileListLine } from 'react-icons/ri';
+import { useAuth } from '../../../store/hooks/useAuth';
+
+import {
+  RiPlantLine,
+  RiStoreLine,
+  RiBookLine,
+  RiTruckLine,
+  RiFileListLine,
+  RiDashboardLine,
+  RiHome2Line,
+} from 'react-icons/ri';
+import { RootState } from '../../../store/store';
 
 export const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
+
+
+  const { handleLogout } = useAuth();
+
+  // Get dashboard path based on user role
+  const getDashboardPath = () => {
+    if (!user?.role) return '/';
+
+    switch (user.role) {
+      case 'admin':
+        return '/admin/dashboard';
+      case 'farmer':
+        return '/farmer/dashboard';
+      case 'buyer':
+        return '/buyer/dashboard';
+      default:
+        return '/';
+    }
+  };
 
   const mainNavItems = [
-    { 
-      path: '/marketplace', 
-      label: 'Marketplace', 
-      icon: <RiStoreLine className="w-5 h-5" /> 
+    {
+      path: '/',
+      label: 'Home',
+      icon: <RiHome2Line className="w-5 h-5" />,
     },
-    { 
-      path: '/knowledge', 
-      label: 'Knowledge Hub', 
-      icon: <RiBookLine className="w-5 h-5" /> 
+    ...(isAuthenticated
+      ? [
+          {
+            path: getDashboardPath(),
+            label: 'Dashboard',
+            icon: <RiDashboardLine className="w-5 h-5" />,
+          },
+        ]
+      : []),
+    {
+      path: '/marketplace',
+      label: 'Marketplace',
+      icon: <RiStoreLine className="w-5 h-5" />,
     },
-    { 
-      path: '/logistics', 
-      label: 'Logistics', 
-      icon: <RiTruckLine className="w-5 h-5" /> 
-    }
+    {
+      path: '/knowledge',
+      label: 'Knowledge Hub',
+      icon: <RiBookLine className="w-5 h-5" />,
+    },
+    {
+      path: '/logistics',
+      label: 'Logistics',
+      icon: <RiTruckLine className="w-5 h-5" />,
+    },
   ];
 
   const orderItems = [
     { label: 'Track Order', link: '/track-order' },
-    { label: 'Order History', link: '/orders' }
+    { label: 'Order History', link: '/orders' },
   ];
 
   const handleLogin = () => {
     navigate('/auth/login');
+  };
+
+  const handleGetStarted = () => {
+    navigate('/auth/register');
   };
 
   return (
@@ -94,7 +144,7 @@ export const Navbar = () => {
                   <span>{item.label}</span>
                 </NavLink>
               ))}
-              
+
               <DropdownMenu
                 title={
                   <div className="flex items-center space-x-2">
@@ -106,17 +156,37 @@ export const Navbar = () => {
               />
 
               <div className="flex items-center space-x-3">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="border-emerald-600 text-emerald-600 hover:bg-emerald-50"
-                  onClick={handleLogin}
-                >
-                  Login
-                </Button>
-                <Button variant="primary" size="sm">
-                  Get Started
-                </Button>
+                {!isAuthenticated ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-emerald-600 text-emerald-600 hover:bg-emerald-50"
+                      onClick={handleLogin}
+                    >
+                      Login
+                    </Button>
+                    <Button variant="primary" size="sm" onClick={handleGetStarted}>
+                      Get Started
+                    </Button>
+                  </>
+                ) : (
+                  <DropdownMenu
+                    title={
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium">{user?.name}</span>
+                      </div>
+                    }
+                    items={[
+                      { label: 'Profile', link: '/profile' },
+                      { label: 'Settings', link: '/settings' },
+                      { 
+                        label: 'Logout', 
+                        onClick: handleLogout // Changed from link to onClick handler
+                      },
+                    ]}
+                  />
+                )}
               </div>
             </div>
 
@@ -125,13 +195,13 @@ export const Navbar = () => {
               className="md:hidden p-2 hover:bg-emerald-50 rounded-lg"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
-              <svg 
-                className="w-6 h-6 text-emerald-600" 
-                fill="none" 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth="2" 
-                viewBox="0 0 24 24" 
+              <svg
+                className="w-6 h-6 text-emerald-600"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
                 stroke="currentColor"
               >
                 <path d="M4 6h16M4 12h16M4 18h16"></path>
@@ -151,12 +221,13 @@ export const Navbar = () => {
                     hover:bg-emerald-50 rounded-lg transition-colors
                     ${isActive ? 'text-emerald-600 bg-emerald-50' : ''}
                   `}
+                  onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {item.icon}
                   <span>{item.label}</span>
                 </NavLink>
               ))}
-              
+
               {/* Mobile Orders Menu */}
               <div className="px-4 py-2">
                 <div className="font-medium text-gray-700 mb-2">Orders</div>
@@ -165,6 +236,7 @@ export const Navbar = () => {
                     key={item.link}
                     to={item.link}
                     className="block py-2 pl-8 text-gray-600 hover:text-emerald-600"
+                    onClick={() => setIsMobileMenuOpen(false)}
                   >
                     {item.label}
                   </Link>
@@ -172,17 +244,57 @@ export const Navbar = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-2 px-4 mt-4">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="border-emerald-600 text-emerald-600"
-                  onClick={handleLogin}
-                >
-                  Login
-                </Button>
-                <Button variant="primary" size="sm">
-                  Get Started
-                </Button>
+                {!isAuthenticated ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-emerald-600 text-emerald-600"
+                      onClick={() => {
+                        handleLogin();
+                        setIsMobileMenuOpen(false);
+                      }}
+                    >
+                      Login
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => {
+                        handleGetStarted();
+                        setIsMobileMenuOpen(false);
+                      }}
+                    >
+                      Get Started
+                    </Button>
+                  </>
+                ) : (
+                  <div className="col-span-2 space-y-2">
+                    <Link
+                      to="/profile"
+                      className="block px-4 py-2 text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Profile
+                    </Link>
+                    <Link
+                      to="/settings"
+                      className="block px-4 py-2 text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Settings
+                    </Link>
+                    <button
+                      className="block px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg cursor-pointer"
+                      onClick={() => {
+                        handleLogout();
+                        setIsMobileMenuOpen(false);
+                      }}
+                    >
+                      Logout
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}

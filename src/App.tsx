@@ -4,7 +4,7 @@ import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from './store/store';
 import { MainLayout } from './Layouts/MainLayout';
-import  AuthLayout  from './Layouts/AuthLayout';
+import AuthLayout from './Layouts/AuthLayout';
 import { DashboardLayout } from './Layouts/DashboardLayout';
 import { HomePage } from './components/home/HomePage';
 import { LoginPage } from './pages/auth/LoginPage';
@@ -43,6 +43,7 @@ import FarmerMessages from './pages/farmer/Messages';
 import Marketplace from './components/marketplace/MarketPlace';
 import KnowledgeHub from './pages/blogs/KnowldgeHub';
 import ArticleDetail from './components/knowledge/ArticleDetail';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 const router = createBrowserRouter([
   {
@@ -56,21 +57,21 @@ const router = createBrowserRouter([
       },
       {
         path: 'marketplace',
-        element: <Marketplace/>
+        element: <Marketplace />,
       },
       {
         path: 'knowledge',
-        element: <KnowledgeHub/>
+        element: <KnowledgeHub />,
       },
       {
         path: 'knowledge/articles/:id',
-        element: <ArticleDetail/>
-      }
+        element: <ArticleDetail />,
+      },
     ],
   },
   {
     path: '/auth',
-    element: <AuthLayout/>,
+    element: <AuthLayout />,
     children: [
       {
         path: 'login',
@@ -88,9 +89,14 @@ const router = createBrowserRouter([
   },
   {
     path: '/admin',
+    element: (
+      <ProtectedRoute roles={['admin']}>
+        <DashboardLayout />,
+      </ProtectedRoute>
+    ),
+
     children: [
       {
-        element: <DashboardLayout />,
         children: [
           {
             path: 'dashboard',
@@ -118,9 +124,13 @@ const router = createBrowserRouter([
   },
   {
     path: '/farmer',
+    element: (
+      <ProtectedRoute roles={['farmer']}>
+        <FarmerDashboardLayout />
+      </ProtectedRoute>
+    ),
     children: [
       {
-        element: <FarmerDashboardLayout />,
         children: [
           {
             path: 'dashboard',
@@ -152,59 +162,62 @@ const router = createBrowserRouter([
           },
           {
             path: 'messages',
-            element: <FarmerMessages/>
-          }
+            element: <FarmerMessages />,
+          },
         ],
       },
     ],
   },
   {
     path: '/buyer',
+    element: (
+      <ProtectedRoute roles={['buyer']}>
+        <BuyerDashboardLayout />
+      </ProtectedRoute>
+    ),
     children: [
       {
-        element: <BuyerDashboardLayout/>,
         children: [
           {
             path: 'dashboard',
-            element: <BuyerDashboard/>,
+            element: <BuyerDashboard />,
           },
           {
             path: 'marketplace',
-            element: <BuyerMarketplace/>
+            element: <BuyerMarketplace />,
           },
           {
             path: 'orders',
-            element: <BuyerOrders/>
+            element: <BuyerOrders />,
           },
           {
             path: 'track',
-            element: <TrackOrders/>
+            element: <TrackOrders />,
           },
           {
             path: 'history',
-            element: <PurchaseHistory/>
+            element: <PurchaseHistory />,
           },
           {
             path: 'analytics',
-            element: <BuyerAnalytics/>
+            element: <BuyerAnalytics />,
           },
           {
-          path: "messages",
-          element: <BuyerMessages/>
+            path: 'messages',
+            element: <BuyerMessages />,
           },
           {
-           path: "profile",
-           element: <BuyerProfile/>
+            path: 'profile',
+            element: <BuyerProfile />,
           },
           {
             path: 'settings',
-            element: <Settings/>
-          }
-        ]
-      }
-    ]
-     
-  }
+            element: <Settings />,
+          },
+        ],
+      },
+    ],
+  },
 ]);
 
 function App() {
