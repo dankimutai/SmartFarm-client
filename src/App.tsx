@@ -4,6 +4,7 @@ import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from './store/store';
 import { MainLayout } from './Layouts/MainLayout';
+import  AuthLayout  from './Layouts/AuthLayout';
 import { DashboardLayout } from './Layouts/DashboardLayout';
 import { HomePage } from './components/home/HomePage';
 import { LoginPage } from './pages/auth/LoginPage';
@@ -40,6 +41,8 @@ import BuyerMessages from './pages/buyer/BuyerMessages';
 import BuyerProfile from './pages/buyer/BuyerProfile';
 import FarmerMessages from './pages/farmer/Messages';
 import Marketplace from './components/marketplace/MarketPlace';
+import KnowledgeHub from './pages/blogs/KnowldgeHub';
+import ArticleDetail from './components/knowledge/ArticleDetail';
 
 const router = createBrowserRouter([
   {
@@ -55,11 +58,19 @@ const router = createBrowserRouter([
         path: 'marketplace',
         element: <Marketplace/>
       },
+      {
+        path: 'knowledge',
+        element: <KnowledgeHub/>
+      },
+      {
+        path: 'knowledge/articles/:id',
+        element: <ArticleDetail/>
+      }
     ],
   },
   {
     path: '/auth',
-    element: <MainLayout />,
+    element: <AuthLayout/>,
     children: [
       {
         path: 'login',
