@@ -1,5 +1,3 @@
-// src/components/knowledge/ArticleDetail.tsx
-import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../../components/ui/card';
 import {
@@ -10,91 +8,22 @@ import {
   Share2,
   Bookmark,
 } from 'lucide-react';
+import { knowledgeApi } from '../../store/api/knowledgeApi';
+import Farm1 from '../../assets/farm-2.jpg';
 
-interface Article {
-  id: number;
-  authorId: number;
-  title: string;
-  content: string;
-  category: string;
-  createdAt: string;
-  updatedAt: string;
-  author: {
-    name: string;
-    avatar: string;
-    role: string;
-  };
-}
 
 const ArticleDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [article, setArticle] = useState<Article | null>(null);
+  
 
-  useEffect(() => {
-    // In a real app, fetch article data based on id
-    // For now, using mock data
-    const mockArticle: Article = {
-      id: 1,
-      authorId: 1,
-      title: 'Maximizing Tomato Yield: Expert Tips for Small-Scale Farmers',
-      content: `
-        Learn the best practices for growing tomatoes in small-scale farming operations.
-        
-        Introduction:
-        Tomatoes are one of the most popular vegetables to grow, and with good reason. 
-        They're versatile, nutritious, and can be highly profitable for small-scale farmers. 
-        This guide will walk you through expert techniques to maximize your tomato yield.
+  
 
-        Soil Preparation:
-        The foundation of successful tomato growing lies in proper soil preparation. 
-        Your soil should be:
-        - Well-draining
-        - Rich in organic matter
-        - pH between 6.0 and 6.8
-        
-        Planting Techniques:
-        When planting tomatoes, consider these key factors:
-        1. Spacing: Plant tomatoes 18-36 inches apart
-        2. Depth: Plant deep enough to cover 2/3 of the stem
-        3. Support: Install stakes or cages at planting time
-        
-        Watering Schedule:
-        Consistent watering is crucial for tomato development:
-        - Water deeply 2-3 times per week
-        - Maintain even soil moisture
-        - Avoid overhead watering to prevent disease
-        
-        Pest Management:
-        Implement these organic pest control methods:
-        - Companion planting with basil and marigolds
-        - Regular inspection for early detection
-        - Removal of affected leaves and plants
-        
-        Harvesting Tips:
-        For the best results:
-        - Pick tomatoes when they're firm and fully colored
-        - Harvest in the morning for best flavor
-        - Handle fruits carefully to avoid bruising
-        
-        [Additional sections with detailed content...]
-      `,
-      category: 'Farming Tips',
-      createdAt: '2024-02-15T10:00:00Z',
-      updatedAt: '2024-02-15T10:00:00Z',
-      author: {
-        name: 'John Doe',
-        avatar: '/api/placeholder/32/32',
-        role: 'Expert Farmer'
-      }
-    };
+  const { data: response, isLoading, error } = knowledgeApi.useGetPostByIdQuery(Number(id), {
+    skip: !id || isNaN(Number(id))
+  });
 
-    setArticle(mockArticle);
-  }, [id]);
-
-  if (!article) {
-    return <div>Loading...</div>;
-  }
+  const article = response?.data;
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -104,11 +33,46 @@ const ArticleDetail = () => {
     });
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500" />
+      </div>
+    );
+  }
+
+  if (error || !article) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Article</h2>
+          <p className="text-gray-600 mb-4">The article could not be found.</p>
+          <button
+            onClick={() => navigate('/knowledge')}
+            className="text-emerald-600 hover:text-emerald-700"
+          >
+            Return to Knowledge Hub
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Split content into sections based on headings
+  const sections = article.content.split('\n').reduce((acc: string[], line: string) => {
+    if (line.trim().startsWith('#') || !acc.length) {
+      acc.push(line);
+    } else {
+      acc[acc.length - 1] += '\n' + line;
+    }
+    return acc;
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-4">
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/knowledge')}
           className="flex items-center text-gray-600 hover:text-emerald-600 mb-6"
         >
           <ArrowLeft className="w-5 h-5 mr-2" />
@@ -119,39 +83,53 @@ const ArticleDetail = () => {
           <CardContent className="p-8">
             {/* Article Header */}
             <div className="mb-8">
-              <span className="px-3 py-1 bg-emerald-100 text-emerald-600 text-sm rounded-full">
-                {article.category}
-              </span>
-              <h1 className="text-3xl font-bold text-gray-900 mt-4 mb-6">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="px-3 py-1 bg-emerald-100 text-emerald-600 text-sm rounded-full">
+                  {article.category}
+                </span>
+                <span className="text-sm text-gray-500 flex items-center">
+                  <Calendar className="w-4 h-4 mr-1" />
+                  {formatDate(article.createdAt)}
+                </span>
+              </div>
+
+              <h1 className="text-3xl font-bold text-gray-900 mb-6">
                 {article.title}
               </h1>
               
-              <div className="flex items-center justify-between border-b pb-6">
-                <div className="flex items-center">
-                  <img
-                    src={article.author.avatar}
-                    alt={article.author.name}
-                    className="w-12 h-12 rounded-full mr-4"
-                  />
-                  <div>
-                    <h3 className="font-medium text-gray-900">{article.author.name}</h3>
-                    <p className="text-sm text-gray-500">{article.author.role}</p>
-                  </div>
-                </div>
-                <div className="flex items-center text-sm text-gray-500">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  {formatDate(article.createdAt)}
+              <div className="flex items-center border-b pb-6">
+                <img
+                  src={Farm1}
+                  alt="Author"
+                  className="w-12 h-12 rounded-full mr-4"
+                />
+                <div>
+                  <h3 className="font-medium text-gray-900">Author {article.authorId}</h3>
+                  <p className="text-sm text-gray-500">Contributor</p>
                 </div>
               </div>
             </div>
 
             {/* Article Content */}
             <div className="prose prose-emerald max-w-none">
-              {article.content.split('\n').map((paragraph, index) => (
-                <p key={index} className="mb-4">
-                  {paragraph}
-                </p>
-              ))}
+              {sections.map((section, index) => {
+                const lines = section.split('\n');
+                const heading = lines[0];
+                const content = lines.slice(1).join('\n');
+
+                return (
+                  <div key={index} className="mb-8">
+                    {heading.startsWith('#') ? (
+                      <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                        {heading.replace(/^#+\s/, '')}
+                      </h2>
+                    ) : null}
+                    <div className="text-gray-700 leading-relaxed whitespace-pre-line">
+                      {content || heading}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Article Footer */}
@@ -160,11 +138,11 @@ const ArticleDetail = () => {
                 <div className="flex items-center space-x-4">
                   <button className="flex items-center text-gray-500 hover:text-emerald-600">
                     <ThumbsUp className="w-5 h-5 mr-2" />
-                    <span>24 Likes</span>
+                    <span>Like</span>
                   </button>
                   <button className="flex items-center text-gray-500 hover:text-emerald-600">
                     <MessageSquare className="w-5 h-5 mr-2" />
-                    <span>12 Comments</span>
+                    <span>Comment</span>
                   </button>
                 </div>
                 <div className="flex items-center space-x-4">

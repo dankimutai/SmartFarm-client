@@ -5,6 +5,7 @@ import storage from 'redux-persist/lib/storage';
 import { api } from './api/authApi';
 import authReducer from '../store/slices/authSlice';
 import { marketplaceApi } from './api/marketPlaceApi';
+import { knowledgeApi } from './api/knowledgeApi';
 
 const persitsConfig = {
   key: 'root',
@@ -15,6 +16,7 @@ const rootReducer: Reducer = combineReducers({
   auth: authReducer,
   [api.reducerPath]: api.reducer,
   [marketplaceApi.reducerPath]: marketplaceApi.reducer,
+  [knowledgeApi.reducerPath]: knowledgeApi.reducer,
 });
 
 const persistedReducer = persistReducer(persitsConfig, rootReducer);
@@ -26,7 +28,8 @@ export const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({ serializableCheck: false }).concat(
       api.middleware,
-      marketplaceApi.middleware
+      marketplaceApi.middleware,
+      knowledgeApi.middleware
     ),
 });
 
