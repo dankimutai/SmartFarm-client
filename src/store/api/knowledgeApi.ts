@@ -5,12 +5,24 @@ import type {
   PostsResponse,
   SinglePostResponse 
 } from '../../types/knowledge.types';
+import { RootState } from '../store';
 
 export const knowledgeApi = createApi({
   reducerPath: 'knowledgeApi',
   baseQuery: fetchBaseQuery({ 
     baseUrl: 'http://localhost:8080',
     credentials: 'include',
+    prepareHeaders: (headers, { getState }) => {
+      // Get token from auth state
+      const token = (getState() as RootState).auth.token;
+      
+      if (token) {
+        // Add token to Authorization header
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+      
+      return headers;
+    },
   }),
   tagTypes: ['Posts'],
   endpoints: (builder) => ({
@@ -70,3 +82,4 @@ export const knowledgeApi = createApi({
     }),
   }),
 });
+

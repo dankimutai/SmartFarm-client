@@ -13,7 +13,7 @@ import {
 import { Link } from 'react-router-dom';
 import { knowledgeApi } from '../../store/api/knowledgeApi';
 import Farm1 from '../../assets/farm-1.jpg';
-
+import CreatePostModal from '../../components/knowledge/CreatePostModal';
 
 const categories = [
   'All Categories',
@@ -29,12 +29,13 @@ const KnowledgeHub = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [sortBy, setSortBy] = useState('newest');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // API Hooks
   const { data: postsResponse, isLoading } = knowledgeApi.useGetPostsQuery({
     category: selectedCategory !== 'All Categories' ? selectedCategory : undefined,
   });
-  const [createPost] = knowledgeApi.useCreatePostMutation();
+  
 
   const articles = postsResponse?.data || [];
 
@@ -57,20 +58,6 @@ const KnowledgeHub = () => {
         return 0;
     }
   });
-
-  const handleCreatePost = async () => {
-    try {
-      await createPost({
-        title: "New Post",
-        content: "Content here",
-        category: "Farming Tips"
-      }).unwrap();
-      // Handle success (e.g., show notification, redirect)
-    } catch (error) {
-      // Handle error
-      console.error('Failed to create post:', error);
-    }
-  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -101,7 +88,7 @@ const KnowledgeHub = () => {
               </p>
             </div>
             <button 
-              onClick={handleCreatePost}
+              onClick={() => setIsCreateModalOpen(true)}
               className="mt-4 md:mt-0 inline-flex items-center px-6 py-3 bg-white text-emerald-600 rounded-lg hover:bg-emerald-50 transition-colors"
             >
               <Plus className="w-5 h-5 mr-2" />
@@ -293,6 +280,12 @@ const KnowledgeHub = () => {
           </div>
         </div>
       </div>
+
+      {/* Create Post Modal */}
+      <CreatePostModal 
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      />
     </div>
   );
 };
