@@ -7,16 +7,20 @@ import authReducer from '../store/slices/authSlice';
 import { marketplaceApi } from './api/marketPlaceApi';
 import { knowledgeApi } from './api/knowledgeApi';
 import cartReducer from "../store/slices/cart.slice";
+import { usersApi } from './api/usersApi';
 
 const persitsConfig = {
   key: 'root',
   storage,
 };
 
+
+
 const rootReducer: Reducer = combineReducers({
   auth: authReducer,
   cart: cartReducer,
   [api.reducerPath]: api.reducer,
+  [usersApi.reducerPath]: usersApi.reducer,
   [marketplaceApi.reducerPath]: marketplaceApi.reducer,
   [knowledgeApi.reducerPath]: knowledgeApi.reducer,
 });
@@ -31,7 +35,8 @@ export const store = configureStore({
     getDefaultMiddleware({ serializableCheck: false }).concat(
       api.middleware,
       marketplaceApi.middleware,
-      knowledgeApi.middleware
+      knowledgeApi.middleware,
+      usersApi.middleware
     ),
 });
 
