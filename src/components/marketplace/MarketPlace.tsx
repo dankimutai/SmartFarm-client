@@ -1,6 +1,10 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent } from '../../components/ui/card';
 import { marketplaceApi } from '../../store/api/marketPlaceApi';
+import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import type { RootState } from '../../store/store';
+import CartDrawer from '../common/CartDrawer';
 import {
   RiSearchLine,
   RiHeartLine,
@@ -9,6 +13,7 @@ import {
   RiCalendarLine,
   RiPlantLine,
   RiFilterLine,
+  RiEyeLine,
 } from 'react-icons/ri';
 import { toast } from 'react-hot-toast';
 
@@ -24,49 +29,62 @@ const Marketplace = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
+  const navigate = useNavigate();
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
 
   const { data: listingsResponse, isLoading, error } = marketplaceApi.useGetListingsQuery();
   const listings = listingsResponse?.data || [];
 
   // Extract unique categories from listings
   const categories = useMemo(() => {
-    const uniqueCategories = new Set(listings.map(listing => listing.product.category));
+    const uniqueCategories = new Set(listings.map((listing) => listing.product.category));
     return ['All Categories', ...Array.from(uniqueCategories)];
   }, [listings]);
 
+  // Modify the addToCart function to check authentication
   const addToCart = (listing: any) => {
-    const existingItem = cart.find(item => item.id === listing.id);
-    
-    if (existingItem) {
-      setCart(cart.map(item => 
-        item.id === listing.id 
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ));
-    } else {
-      setCart([...cart, {
-        id: listing.id,
-        name: listing.product.name,
-        price: listing.price,
-        quantity: 1,
-        unit: listing.product.unit
-      }]);
+    if (!isAuthenticated) {
+      toast.error('Please login to add items to cart');
+      navigate('/auth/login');
+      return;
     }
-    
+
+    const existingItem = cart.find((item) => item.id === listing.id);
+
+    if (existingItem) {
+      setCart(
+        cart.map((item) =>
+          item.id === listing.id ? { ...item, quantity: item.quantity + 1 } : item
+        )
+      );
+    } else {
+      setCart([
+        ...cart,
+        {
+          id: listing.id,
+          name: listing.product.name,
+          price: listing.price,
+          quantity: 1,
+          unit: listing.product.unit,
+        },
+      ]);
+    }
+
     toast.success(`Added ${listing.product.name} to cart`);
   };
 
   // Filter listings based on search term and selected category
   const filteredListings = useMemo(() => {
-    return listings.filter(listing => {
-      const matchesSearch = 
+    return listings.filter((listing) => {
+      const matchesSearch =
         listing.product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         listing.product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
         listing.farmer.location.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesCategory = 
-        selectedCategory === 'All Categories' || 
-        listing.product.category === selectedCategory;
+      const matchesCategory =
+        selectedCategory === 'All Categories' || listing.product.category === selectedCategory;
 
       return matchesSearch && matchesCategory;
     });
@@ -91,6 +109,15 @@ const Marketplace = () => {
     );
   }
 
+  const handleCartClick = () => {
+    if (!isAuthenticated) {
+      toast.error('Please login to view cart');
+      navigate('/auth/login');
+      return;
+    }
+    setIsCartOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
@@ -103,9 +130,9 @@ const Marketplace = () => {
                 Connect directly with farmers and source fresh produce
               </p>
             </div>
-            <div className="relative">
+            <div className="relative cursor-pointer" onClick={handleCartClick}>
               <RiShoppingCartLine className="w-8 h-8" />
-              {cart.length > 0 && (
+              {isAuthenticated && cart.length > 0 && (
                 <span className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">
                   {cart.length}
                 </span>
@@ -148,12 +175,11 @@ const Marketplace = () => {
         {/* Category Summary */}
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-gray-800">
-            {selectedCategory === 'All Categories' 
-              ? 'All Products' 
-              : selectedCategory}
+            {selectedCategory === 'All Categories' ? 'All Products' : selectedCategory}
           </h2>
           <p className="text-gray-600">
-            Showing {filteredListings.length} {filteredListings.length === 1 ? 'product' : 'products'}
+            Showing {filteredListings.length}{' '}
+            {filteredListings.length === 1 ? 'product' : 'products'}
           </p>
         </div>
 
@@ -168,14 +194,14 @@ const Marketplace = () => {
                   alt={listing.product.name}
                   className="w-full h-48 object-cover"
                 />
-                <button 
+                <button
                   className="absolute top-2 right-2 p-2 bg-white rounded-full shadow-md hover:bg-gray-100"
                   onClick={() => toast.success('Added to favorites!')}
                 >
                   <RiHeartLine className="w-5 h-5 text-gray-600" />
                 </button>
               </div>
-              
+
               <CardContent className="p-4">
                 <div className="mb-3">
                   <h3 className="font-semibold text-lg">{listing.product.name}</h3>
@@ -191,12 +217,12 @@ const Marketplace = () => {
                     <RiMapPinLine className="w-4 h-4 mr-2" />
                     {listing.farmer.location}
                   </div>
-                  
+
                   <div className="flex items-center text-sm text-gray-600">
                     <RiPlantLine className="w-4 h-4 mr-2" />
                     Farm Size: {listing.farmer.farmSize} acres
                   </div>
-                  
+
                   <div className="flex items-center text-sm text-gray-600">
                     <RiCalendarLine className="w-4 h-4 mr-2" />
                     Available: {new Date(listing.availableDate).toLocaleDateString()}
@@ -208,9 +234,7 @@ const Marketplace = () => {
                     <p className="text-2xl font-bold text-emerald-600">
                       KES {parseFloat(listing.price).toLocaleString()}
                     </p>
-                    <p className="text-sm text-gray-500">
-                      per {listing.product.unit}
-                    </p>
+                    <p className="text-sm text-gray-500">per {listing.product.unit}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-medium text-gray-900">
@@ -220,13 +244,24 @@ const Marketplace = () => {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => addToCart(listing)}
-                  className="w-full px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
-                >
-                  <RiShoppingCartLine className="w-5 h-5" />
-                  Add to Cart
-                </button>
+                {/* Card Actions */}
+                <div className="space-y-2">
+                  <button
+                    onClick={() => navigate(`/marketplace/${listing.id}`)}
+                    className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <RiEyeLine className="w-5 h-5" />
+                    View Details
+                  </button>
+
+                  <button
+                    onClick={() => addToCart(listing)}
+                    className="w-full px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <RiShoppingCartLine className="w-5 h-5" />
+                    Add to Cart
+                  </button>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -241,6 +276,12 @@ const Marketplace = () => {
           </div>
         )}
       </div>
+      <CartDrawer
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        cart={cart}
+        setCart={setCart}
+      />
     </div>
   );
 };

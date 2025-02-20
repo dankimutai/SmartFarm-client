@@ -44,6 +44,7 @@ import Marketplace from './components/marketplace/MarketPlace';
 import KnowledgeHub from './pages/blogs/KnowldgeHub';
 import ArticleDetail from './components/knowledge/ArticleDetail';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import ListingDetails from './pages/marketplace/ListingDetails';
 
 const router = createBrowserRouter([
   {
@@ -58,6 +59,10 @@ const router = createBrowserRouter([
       {
         path: 'marketplace',
         element: <Marketplace />,
+      },
+      {
+        path: 'marketplace/:id',
+        element: <ListingDetails/>
       },
       {
         path: 'knowledge',
@@ -185,6 +190,10 @@ const router = createBrowserRouter([
           {
             path: 'marketplace',
             element: <BuyerMarketplace />,
+          },
+          {
+            path: 'marketplace/:id',
+            element: <ListingDetails />,
           },
           {
             path: 'orders',

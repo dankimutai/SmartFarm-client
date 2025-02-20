@@ -6,6 +6,7 @@ import { api } from './api/authApi';
 import authReducer from '../store/slices/authSlice';
 import { marketplaceApi } from './api/marketPlaceApi';
 import { knowledgeApi } from './api/knowledgeApi';
+import cartReducer from "../store/slices/cart.slice";
 
 const persitsConfig = {
   key: 'root',
@@ -14,6 +15,7 @@ const persitsConfig = {
 
 const rootReducer: Reducer = combineReducers({
   auth: authReducer,
+  cart: cartReducer,
   [api.reducerPath]: api.reducer,
   [marketplaceApi.reducerPath]: marketplaceApi.reducer,
   [knowledgeApi.reducerPath]: knowledgeApi.reducer,

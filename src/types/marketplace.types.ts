@@ -30,6 +30,11 @@ export interface ListingsResponse {
   data: Listing[];
 }
 
+export interface SingleListingResponse {
+  success: boolean;
+  data: Listing;
+}
+
 export interface ListingsQueryParams {
   search?: string;
   category?: string;

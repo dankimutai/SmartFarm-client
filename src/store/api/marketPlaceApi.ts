@@ -1,5 +1,5 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import type { ListingsResponse, ListingsQueryParams } from '../../types/marketplace.types';
+import type { ListingsResponse, ListingsQueryParams,SingleListingResponse } from '../../types/marketplace.types';
 
 export const marketplaceApi = createApi({
   reducerPath: 'marketplaceApi',
@@ -16,6 +16,9 @@ export const marketplaceApi = createApi({
           limit: params?.limit || 12,
         },
       }),
+    }),
+    getListingById: builder.query<SingleListingResponse, number>({
+      query: (id) => `/listings/${id}`,
     }),
   }),
 });
