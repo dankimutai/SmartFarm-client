@@ -153,6 +153,41 @@ export const productsApi = createApi({
             ] 
           : ['Products', 'FarmerListings'],
     }),
+
+    // New mutation for updating listing status
+    updateListingStatus: builder.mutation<
+      { success: boolean; data: FarmerListing; error?: string },
+      { id: number; status: 'active' | 'sold' | 'expired' }
+    >({
+      query: ({ id, status }) => ({
+        url: `/listings/${id}`,
+        method: 'PATCH',
+        body: { status }
+      }),
+      invalidatesTags: (result) => 
+        result?.success 
+          ? [
+              { type: 'Products' },
+              { type: 'FarmerListings', id: 'LIST' },
+              { type: 'FarmerListings', id: result.data.id }
+            ] 
+          : ['Products', 'FarmerListings'],
+    }),
+deleteListing: builder.mutation<
+  { success: boolean; message: string; error?: string },
+  number // listing id
+>({
+  query: (id) => ({
+    url: `/listings/${id}`,
+    method: 'DELETE',
+  }),
+  invalidatesTags: (result) => 
+    result?.success 
+      ? [
+          { type: 'Products' },
+          { type: 'FarmerListings', id: 'LIST' }
+        ] 
+      : ['Products', 'FarmerListings'],
+}),
   }),
 });
-

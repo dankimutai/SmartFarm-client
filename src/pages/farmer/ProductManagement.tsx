@@ -1,5 +1,5 @@
 // src/pages/farmer/ProductManagement.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { productsApi } from '../../store/api/productsApi';
@@ -13,10 +13,12 @@ import {
   Trash2,
   Eye,
   AlertCircle,
-  ListPlus
+  ListPlus,
+  Check
 } from 'lucide-react';
 import AddProductModal from '../../components/farmer/AddProductModal';
 import AddListingModal from '../../components/farmer/AddListingModal';
+import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover';
 
 const ProductManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,11 +28,12 @@ const ProductManagement = () => {
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
   const [isAddListingModalOpen, setIsAddListingModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<number | undefined>(undefined);
+  const [editingStatus, setEditingStatus] = useState<{ id: number, open: boolean } | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<number | null>(null);
 
   // Get farmerId directly from auth state
   const user = useSelector((state: RootState) => state.auth.user);
   const farmerId = user?.farmerId;
-  console.log(farmerId)
 
   // Fetch farmer's listings using farmerId
   const { 
@@ -42,6 +45,10 @@ const ProductManagement = () => {
   } = productsApi.useGetFarmerListingsQuery(farmerId!, {
     skip: !farmerId
   });
+
+  // Status update and delete mutations
+  const [updateListingStatus, { isLoading: isUpdatingStatus }] = productsApi.useUpdateListingStatusMutation();
+  const [deleteListing, { isLoading: isDeleting }] = productsApi.useDeleteListingMutation();
 
   const listings = listingsResponse?.data || [];
 
@@ -57,6 +64,46 @@ const ProductManagement = () => {
     // Refetch listings to update the UI
     refetch();
   };
+
+  // Handle status update
+  const handleStatusUpdate = async (listingId: number, newStatus: 'active' | 'sold' | 'expired') => {
+    try {
+      await updateListingStatus({
+        id: listingId,
+        status: newStatus
+      }).unwrap();
+      
+      // Close the popover after successful update
+      setEditingStatus(null);
+    } catch (error) {
+      console.error('Failed to update listing status:', error);
+    }
+  };
+
+  // Handle delete listing
+  const handleDeleteListing = async (listingId: number) => {
+    try {
+      await deleteListing(listingId).unwrap();
+      // Clear the delete confirmation
+      setDeleteConfirmation(null);
+      // Success message could be added here
+    } catch (error) {
+      console.error('Failed to delete listing:', error);
+      // Error message could be added here
+    }
+  };
+
+  // Close delete confirmation when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (deleteConfirmation && !(event.target as HTMLElement).closest('[data-delete-dialog]')) {
+        setDeleteConfirmation(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [deleteConfirmation]);
 
   // Filter listings based on search and category
   const filteredListings = listings.filter((listing) => {
@@ -273,16 +320,93 @@ const ProductManagement = () => {
                       {new Date(listing.availableDate).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-4">
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-3 relative">
                         <button className="text-gray-600 hover:text-gray-800">
                           <Eye className="h-4 w-4" />
                         </button>
-                        <button className="text-blue-600 hover:text-blue-800">
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button className="text-red-600 hover:text-red-800">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        
+                        {/* Edit Status with Popover */}
+                        <Popover open={editingStatus?.id === listing.id && editingStatus.open} 
+                                 onOpenChange={(open) => setEditingStatus(open ? { id: listing.id, open } : null)}>
+                          <PopoverTrigger asChild>
+                            <button className="text-blue-600 hover:text-blue-800">
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-40 p-0">
+                            <div className="py-2">
+                              <h4 className="px-3 py-1 text-sm font-medium text-gray-900">Update Status</h4>
+                              <div className="mt-1 border-t">
+                                <button
+                                  disabled={isUpdatingStatus}
+                                  onClick={() => handleStatusUpdate(listing.id, 'active')}
+                                  className={`w-full px-3 py-1.5 text-left text-sm flex items-center ${
+                                    listing.status === 'active' ? 'bg-green-50 text-green-800 font-medium' : 'hover:bg-gray-50'
+                                  }`}
+                                >
+                                  {listing.status === 'active' && <Check className="h-3.5 w-3.5 mr-2" />}
+                                  Active
+                                </button>
+                                <button
+                                  disabled={isUpdatingStatus}
+                                  onClick={() => handleStatusUpdate(listing.id, 'sold')}
+                                  className={`w-full px-3 py-1.5 text-left text-sm flex items-center ${
+                                    listing.status === 'sold' ? 'bg-blue-50 text-blue-800 font-medium' : 'hover:bg-gray-50'
+                                  }`}
+                                >
+                                  {listing.status === 'sold' && <Check className="h-3.5 w-3.5 mr-2" />}
+                                  Sold
+                                </button>
+                                <button
+                                  disabled={isUpdatingStatus}
+                                  onClick={() => handleStatusUpdate(listing.id, 'expired')}
+                                  className={`w-full px-3 py-1.5 text-left text-sm flex items-center ${
+                                    listing.status === 'expired' ? 'bg-red-50 text-red-800 font-medium' : 'hover:bg-gray-50'
+                                  }`}
+                                >
+                                  {listing.status === 'expired' && <Check className="h-3.5 w-3.5 mr-2" />}
+                                  Expired
+                                </button>
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                        
+                        {/* Delete Button and Confirmation */}
+                        <div className="relative">
+                          <button 
+                            className="text-red-600 hover:text-red-800"
+                            onClick={() => setDeleteConfirmation(listing.id)}
+                            disabled={isDeleting}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                          
+                          {/* Delete Confirmation Dropdown */}
+                          {deleteConfirmation === listing.id && (
+                            <div 
+                              data-delete-dialog
+                              className="absolute z-50 right-0 top-6 w-48 bg-white border border-gray-200 rounded-md shadow-md p-3"
+                            >
+                              <p className="text-sm text-gray-700 mb-2">Delete this listing?</p>
+                              <div className="flex justify-end space-x-2">
+                                <button 
+                                  className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200" 
+                                  onClick={() => setDeleteConfirmation(null)}
+                                >
+                                  Cancel
+                                </button>
+                                <button 
+                                  className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                                  onClick={() => handleDeleteListing(listing.id)}
+                                  disabled={isDeleting}
+                                >
+                                  {isDeleting ? 'Deleting...' : 'Delete'}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
                   </tr>
