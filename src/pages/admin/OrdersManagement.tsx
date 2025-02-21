@@ -1,5 +1,8 @@
-import  { useState } from 'react';
+// src/pages/admin/OrdersManagement.tsx
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { ordersApi } from '../../store/api/ordersApi';
+import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { 
   Search, 
   Filter,
@@ -11,69 +14,31 @@ import {
   Truck
 } from 'lucide-react';
 
-interface Order {
-  id: string;
-  customer: {
-    name: string;
-    email: string;
-    image: string;
-  };
-  items: {
-    name: string;
-    quantity: number;
-    price: number;
-  }[];
-  total: number;
-  status: 'pending' | 'processing' | 'delivered' | 'cancelled';
-  date: string;
-  paymentStatus: 'paid' | 'unpaid';
-}
-
-const mockOrders: Order[] = [
-  {
-    id: 'ORD-001',
-    customer: {
-      name: 'John Doe',
-      email: 'john@example.com',
-      image: '/api/placeholder/32/32'
-    },
-    items: [
-      { name: 'Fresh Tomatoes', quantity: 5, price: 25.00 },
-      { name: 'Organic Potatoes', quantity: 3, price: 15.00 }
-    ],
-    total: 40.00,
-    status: 'pending',
-    date: '2024-02-14',
-    paymentStatus: 'paid'
-  },
-  {
-    id: 'ORD-002',
-    customer: {
-      name: 'Jane Smith',
-      email: 'jane@example.com',
-      image: '/api/placeholder/32/32'
-    },
-    items: [
-      { name: 'Carrots', quantity: 2, price: 10.00 }
-    ],
-    total: 10.00,
-    status: 'delivered',
-    date: '2024-02-13',
-    paymentStatus: 'paid'
-  }
-];
-
 const OrdersManagement = () => {
-  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [selectedOrders, setSelectedOrders] = useState<number[]>([]);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const getStatusColor = (status: Order['status']) => {
+  // Fetch orders with RTK Query
+  const { 
+    data: orders, 
+    isLoading, 
+    isError,
+    error 
+  } = ordersApi.useGetOrdersQuery();
+
+
+
+  const [updateOrderStatus] = ordersApi.useUpdateOrderStatusMutation();
+
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending':
         return 'bg-yellow-100 text-yellow-800';
-      case 'processing':
+      case 'confirmed':
         return 'bg-blue-100 text-blue-800';
+      case 'in_transit':
+        return 'bg-indigo-100 text-indigo-800';
       case 'delivered':
         return 'bg-green-100 text-green-800';
       case 'cancelled':
@@ -83,11 +48,25 @@ const OrdersManagement = () => {
     }
   };
 
-  const getStatusIcon = (status: Order['status']) => {
+  const getPaymentStatusColor = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return 'bg-green-100 text-green-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'failed':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pending':
         return <Clock className="w-4 h-4" />;
-      case 'processing':
+      case 'confirmed':
+      case 'in_transit':
         return <Truck className="w-4 h-4" />;
       case 'delivered':
         return <CheckCircle className="w-4 h-4" />;
@@ -97,6 +76,39 @@ const OrdersManagement = () => {
         return null;
     }
   };
+
+  const handleStatusUpdate = async (orderId: number, status: string) => {
+    try {
+      await updateOrderStatus({ 
+        id: orderId, 
+        status: status as 'pending' | 'confirmed' | 'in_transit' | 'delivered' | 'cancelled'
+      }).unwrap();
+    } catch (error) {
+      console.error('Failed to update order status:', error);
+    }
+  };
+
+  // Filter orders based on status and search term
+  const filteredOrders = orders?.filter(order => {
+    const matchesStatus = filterStatus === 'all' || order.orderStatus === filterStatus;
+    const matchesSearch = !searchTerm || 
+      order.id.toString().includes(searchTerm) ||
+      order.buyer.companyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.listing.product.name.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesStatus && matchesSearch;
+  });
+
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  if (isError) {
+    return (
+      <div className="p-4 bg-red-50 text-red-600 rounded-lg">
+        Error loading orders: {(error as any)?.data?.message || 'Something went wrong'}
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -145,7 +157,8 @@ const OrdersManagement = () => {
             >
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
-              <option value="processing">Processing</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="in_transit">In Transit</option>
               <option value="delivered">Delivered</option>
               <option value="cancelled">Cancelled</option>
             </select>
@@ -157,7 +170,6 @@ const OrdersManagement = () => {
         </CardHeader>
 
         <CardContent>
-          {/* Orders Table */}
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -166,18 +178,18 @@ const OrdersManagement = () => {
                     <input
                       type="checkbox"
                       className="rounded border-gray-300"
-                      checked={selectedOrders.length === mockOrders.length}
+                      checked={selectedOrders.length === filteredOrders?.length}
                       onChange={() => {
-                        const allIds = mockOrders.map(order => order.id);
+                        const allIds = filteredOrders?.map(order => order.id) || [];
                         setSelectedOrders(prev => 
-                          prev.length === mockOrders.length ? [] : allIds
+                          prev.length === filteredOrders?.length ? [] : allIds
                         );
                       }}
                     />
                   </th>
                   <th className="px-4 py-3 text-left">Order ID</th>
-                  <th className="px-4 py-3 text-left">Customer</th>
-                  <th className="px-4 py-3 text-left">Items</th>
+                  <th className="px-4 py-3 text-left">Buyer</th>
+                  <th className="px-4 py-3 text-left">Product</th>
                   <th className="px-4 py-3 text-left">Total</th>
                   <th className="px-4 py-3 text-left">Status</th>
                   <th className="px-4 py-3 text-left">Payment</th>
@@ -186,7 +198,7 @@ const OrdersManagement = () => {
                 </tr>
               </thead>
               <tbody>
-                {mockOrders.map((order) => (
+                {filteredOrders?.map((order) => (
                   <tr key={order.id} className="border-b hover:bg-gray-50">
                     <td className="px-4 py-4">
                       <input
@@ -202,77 +214,78 @@ const OrdersManagement = () => {
                         }}
                       />
                     </td>
-                    <td className="px-4 py-4 font-medium">{order.id}</td>
+                    <td className="px-4 py-4 font-medium">#{order.id}</td>
                     <td className="px-4 py-4">
                       <div className="flex items-center">
                         <img 
-                          src={order.customer.image}
-                          alt={order.customer.name}
+                          src={'/api/placeholder/32/32'}
+                          alt={order.buyer.companyName || 'Buyer'}
                           className="h-8 w-8 rounded-full mr-3"
                         />
                         <div>
-                          <div className="font-medium">{order.customer.name}</div>
-                          <div className="text-sm text-gray-500">{order.customer.email}</div>
+                          <div className="font-medium">{order.buyer.companyName || 'No Company Name'}</div>
+                          <div className="text-sm text-gray-500">{order.buyer.businessType || 'No Business Type'}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-4">
                       <div className="text-sm">
-                        {order.items.map((item, index) => (
-                          <div key={index}>
-                            {item.quantity}x {item.name}
-                          </div>
-                        ))}
+                        {order.listing.product.name}
+                        <div className="text-gray-500">
+                          {order.quantity} {order.listing.product.unit}
+                        </div>
                       </div>
                     </td>
                     <td className="px-4 py-4 font-medium">
-                      ${order.total.toFixed(2)}
+                      ${Number(order.totalPrice).toFixed(2)}
                     </td>
                     <td className="px-4 py-4">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                        {getStatusIcon(order.status)}
-                        <span className="ml-1">{order.status.charAt(0).toUpperCase() + order.status.slice(1)}</span>
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.orderStatus)}`}>
+                        {getStatusIcon(order.orderStatus)}
+                        <span className="ml-1">
+                          {order.orderStatus.split('_').map(word => 
+                            word.charAt(0).toUpperCase() + word.slice(1)
+                          ).join(' ')}
+                        </span>
                       </span>
                     </td>
                     <td className="px-4 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        order.paymentStatus === 'paid' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(order.paymentStatus)}`}>
                         {order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
                       </span>
                     </td>
                     <td className="px-4 py-4 text-gray-500">
-                      {order.date}
+                      {new Date(order.createdAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
                     </td>
                     <td className="px-4 py-4">
-                      <button className="text-blue-600 hover:text-blue-800">
-                        <Eye className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center space-x-3">
+                        <button 
+                          className="text-blue-600 hover:text-blue-800"
+                          title="View Order Details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <select
+                          className="text-sm border rounded px-2 py-1"
+                          value={order.orderStatus}
+                          onChange={(e) => handleStatusUpdate(order.id, e.target.value)}
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="confirmed">Confirmed</option>
+                          <option value="in_transit">In Transit</option>
+                          <option value="delivered">Delivered</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-
-          {/* Pagination */}
-          <div className="flex items-center justify-between mt-4">
-            <div className="text-sm text-gray-500">
-              Showing 1 to {mockOrders.length} of {mockOrders.length} orders
-            </div>
-            <div className="flex space-x-2">
-              <button className="px-3 py-1 border rounded hover:bg-gray-50">
-                Previous
-              </button>
-              <button className="px-3 py-1 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded">
-                1
-              </button>
-              <button className="px-3 py-1 border rounded hover:bg-gray-50">
-                Next
-              </button>
-            </div>
           </div>
         </CardContent>
       </Card>

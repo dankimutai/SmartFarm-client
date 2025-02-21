@@ -9,6 +9,7 @@ import { knowledgeApi } from './api/knowledgeApi';
 import cartReducer from "../store/slices/cart.slice";
 import { usersApi } from './api/usersApi';
 import { productsApi } from './api/productsApi';
+import { ordersApi } from './api/ordersApi';
 
 const persitsConfig = {
   key: 'root',
@@ -25,6 +26,7 @@ const rootReducer: Reducer = combineReducers({
   [marketplaceApi.reducerPath]: marketplaceApi.reducer,
   [knowledgeApi.reducerPath]: knowledgeApi.reducer,
   [productsApi.reducerPath]: productsApi.reducer,
+  [ordersApi.reducerPath]: ordersApi.reducer,
 });
 
 const persistedReducer = persistReducer(persitsConfig, rootReducer);
@@ -39,7 +41,8 @@ export const store = configureStore({
       marketplaceApi.middleware,
       knowledgeApi.middleware,
       usersApi.middleware,
-      productsApi.middleware
+      productsApi.middleware,
+      ordersApi.middleware
     ),
 });
 
