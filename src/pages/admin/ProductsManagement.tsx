@@ -17,16 +17,14 @@ import {
   List,
 } from 'lucide-react';
 
+// Updated Listing interface to match API response types
 interface Listing {
   id: number;
-  quantity: number;
-  price: number;
+  quantity: string; // Changed from number to string
+  price: string;    // Changed from number to string
   availableDate: string;
+  status: string;
 }
-
-
-
-
 
 const ProductsManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,7 +42,8 @@ const ProductsManagement = () => {
   };
 
   const getTotalQuantity = (listings: Listing[]) => {
-    return listings.reduce((sum, listing) => sum + listing.quantity, 0);
+    // Convert string quantities to numbers before summing
+    return listings.reduce((sum, listing) => sum + parseFloat(listing.quantity), 0);
   };
 
   const getStockStatus = (quantity: number) => {
@@ -175,7 +174,7 @@ const ProductsManagement = () => {
                   </span>
                 </td>
                 <td className="px-4 py-4 text-gray-900">
-                  ${latestListing?.price.toFixed(2) || 'N/A'}
+                  ${latestListing ? parseFloat(latestListing.price).toFixed(2) : 'N/A'}
                 </td>
                 <td className="px-4 py-4 text-gray-900">
                   {totalQuantity} {product.unit}
@@ -256,7 +255,7 @@ const ProductsManagement = () => {
               <p className="text-sm text-gray-500">{product.unit}</p>
               <div className="flex items-center justify-between">
                 <span className="text-lg font-bold">
-                  ${latestListing?.price.toFixed(2) || 'N/A'}
+                  ${latestListing ? parseFloat(latestListing.price).toFixed(2) : 'N/A'}
                 </span>
                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${status.class}`}>
                   {status.text}

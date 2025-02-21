@@ -11,7 +11,6 @@ import {
   RiPlantLine,
   RiStoreLine,
   RiBookLine,
-  RiTruckLine,
   RiFileListLine,
   RiDashboardLine,
   RiHome2Line,
@@ -22,7 +21,6 @@ export const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
-
 
   const { handleLogout } = useAuth();
 
@@ -66,11 +64,6 @@ export const Navbar = () => {
       path: '/knowledge',
       label: 'Knowledge Hub',
       icon: <RiBookLine className="w-5 h-5" />,
-    },
-    {
-      path: '/logistics',
-      label: 'Logistics',
-      icon: <RiTruckLine className="w-5 h-5" />,
     },
   ];
 
@@ -180,9 +173,9 @@ export const Navbar = () => {
                     items={[
                       { label: 'Profile', link: '/profile' },
                       { label: 'Settings', link: '/settings' },
-                      { 
-                        label: 'Logout', 
-                        onClick: handleLogout // Changed from link to onClick handler
+                      {
+                        label: 'Logout',
+                        onClick: handleLogout, // Changed from link to onClick handler
                       },
                     ]}
                   />

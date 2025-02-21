@@ -9,10 +9,20 @@ export interface User {
   name: string;
   email: string;
   phoneNumber: string;
-  image?: string;
-  role: Role;
-  createdAt: Date;
-  updatedAt: Date;
+  image: string | null;
+  role: 'farmer' | 'buyer' | 'admin';
+  createdAt: string;
+  updatedAt: string;
+  farmer: {
+    id: number;
+    userId: number;
+    location: string;
+    farmSize: number;
+    primaryCrops: string;
+  } | null;
+  buyer: null | any;
+  farmerId?: number;
+  buyerId?: number;
 }
 
 // Login credentials

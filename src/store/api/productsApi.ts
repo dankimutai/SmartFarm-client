@@ -9,11 +9,34 @@ interface Product {
   imageUrl: string;
   listings: {
     id: number;
-    quantity: number;
-    price: number;
+    quantity: string;
+    price: string;
     availableDate: string;
     status: string;
   }[];
+}
+
+interface FarmerListing {
+  id: number;
+  productId: number;
+  quantity: string;
+  price: string;
+  availableDate: string;
+  status: 'active' | 'sold' | 'expired';
+  createdAt: string;
+  updatedAt: string;
+  product: {
+    id: number;
+    name: string;
+    category: string;
+    unit: string;
+    imageUrl: string | null;
+  };
+}
+
+interface FarmerListingsResponse {
+  success: boolean;
+  data: FarmerListing[];
 }
 
 interface ProductsResponse {
@@ -33,7 +56,7 @@ interface ProductsQueryParams {
 
 export const productsApi = createApi({
   reducerPath: 'productsApi',
-  baseQuery: fetchBaseQuery({ 
+  baseQuery: fetchBaseQuery({
     baseUrl: 'http://localhost:8080',
     prepareHeaders: (headers, { getState }) => {
       const token = (getState() as RootState).auth.token;
@@ -43,7 +66,7 @@ export const productsApi = createApi({
       return headers;
     },
   }),
-  tagTypes: ['Products'],
+  tagTypes: ['Products', 'FarmerListings'],
   endpoints: (builder) => ({
     getProducts: builder.query<ProductsResponse, ProductsQueryParams>({
       query: (params) => ({
@@ -56,6 +79,24 @@ export const productsApi = createApi({
       }),
       providesTags: ['Products'],
     }),
+
+    getFarmerListings: builder.query<FarmerListingsResponse, number>({
+      query: (farmerId) => ({
+        url: `/listings/farmer/${farmerId}`,
+      }),
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.data.map(({ id }) => ({ type: 'FarmerListings' as const, id })),
+              { type: 'FarmerListings', id: 'LIST' },
+            ]
+          : [{ type: 'FarmerListings', id: 'LIST' }],
+    }),
+    
+    getFarmerByUserId: builder.query<{ id: number; userId: number }, number>({
+      query: (userId) => `/farmers${userId}`,
+    }),
+
     deleteProduct: builder.mutation<void, number>({
       query: (id) => ({
         url: `/products/${id}`,
@@ -63,6 +104,7 @@ export const productsApi = createApi({
       }),
       invalidatesTags: ['Products'],
     }),
+
     updateProduct: builder.mutation<Product, { id: number; data: Partial<Product> }>({
       query: ({ id, data }) => ({
         url: `/products/${id}`,
@@ -70,6 +112,46 @@ export const productsApi = createApi({
         body: data,
       }),
       invalidatesTags: ['Products'],
+    }),
+    
+    // Add product mutation - updated to match backend expectations
+    addProduct: builder.mutation<
+      { success: boolean; data: Product; error?: string },
+      Omit<Product, 'id' | 'listings'>
+    >({
+      query: (productData) => ({
+        url: '/products',
+        method: 'POST',
+        body: productData,
+      }),
+      invalidatesTags: ['Products', 'FarmerListings'],
+    }),
+    
+    // Add listing mutation - updated to use string types for quantity and price
+    addListing: builder.mutation<
+      { success: boolean; data: FarmerListing; error?: string },
+      {
+        farmerId: number;
+        productId: number;
+        quantity: string;  // Changed from number to string
+        price: string;     // Changed from number to string
+        availableDate: string;
+        status?: 'active' | 'sold' | 'expired';
+      }
+    >({
+      query: (listingData) => ({
+        url: '/listings',
+        method: 'POST',
+        body: listingData,
+      }),
+      invalidatesTags: (result) => 
+        result?.success 
+          ? [
+              { type: 'Products' },
+              { type: 'FarmerListings', id: 'LIST' },
+              { type: 'FarmerListings', id: result.data.id }
+            ] 
+          : ['Products', 'FarmerListings'],
     }),
   }),
 });
