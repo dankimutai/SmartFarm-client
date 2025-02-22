@@ -1,10 +1,12 @@
-// src/pages/farmer/OrdersManagement.tsx
+// Enhanced Order Details Modal with Payment Status Update
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { 
   ShoppingBag, Eye, Clock, Truck, CheckCircle, XCircle, 
-  Download, X, Search 
+  Download, X, Search, Calendar, CreditCard, User, Package, 
+  ArrowRight, Phone, MessageSquare, RefreshCw, Send, 
+  DollarSign, AlertCircle, Loader2
 } from 'lucide-react';
 import { ordersApi } from '../../store/api/ordersApi';
 import { RootState } from '../../store/store';
@@ -62,8 +64,6 @@ interface Order {
   listing: Listing;
 }
 
-
-
 const OrdersManagement = () => {
   const user = useSelector((state: RootState) => state.auth.user);
   const userId = user?.id;
@@ -86,6 +86,13 @@ const OrdersManagement = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOrderDetails, setSelectedOrderDetails] = useState<Order | null>(null);
+  
+  // Add states for handling loading and feedback
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateFeedback, setUpdateFeedback] = useState<{
+    message: string;
+    type: 'success' | 'error' | null;
+  }>({ message: '', type: null });
 
   // Get order statistics
   const getOrderStats = () => {
@@ -168,20 +175,51 @@ const OrdersManagement = () => {
     }
   };
 
- // Update the handleStatusUpdate function to use the new mutation
- const handleStatusUpdate = async (orderId: number, newStatus: Order['orderStatus']) => {
-  try {
-    await updateOrder({
-      id: orderId,
-      updateData: {
-        orderStatus: newStatus
+  // Enhanced update function that handles both order status and payment status
+  const handleStatusUpdate = async (orderId: number, updateData: {
+    orderStatus?: Order['orderStatus'];
+    paymentStatus?: Order['paymentStatus'];
+  }) => {
+    setIsUpdating(true);
+    setUpdateFeedback({ message: '', type: null });
+    
+    try {
+      await updateOrder({
+        id: orderId,
+        updateData
+      }).unwrap();
+      
+      // Determine success message based on what was updated
+      let successMessage = '';
+      if (updateData.orderStatus && updateData.paymentStatus) {
+        successMessage = `Order and payment status successfully updated`;
+      } else if (updateData.orderStatus) {
+        successMessage = `Order status successfully updated to ${updateData.orderStatus.replace('_', ' ')}`;
+      } else if (updateData.paymentStatus) {
+        successMessage = `Payment status successfully updated to ${updateData.paymentStatus}`;
       }
-    }).unwrap();
-    handleCloseModal();
-  } catch (error) {
-    console.error('Failed to update order status:', error);
-  }
-}; 
+      
+      setUpdateFeedback({
+        message: successMessage,
+        type: 'success'
+      });
+      
+      // Auto-close modal after successful update after 1.5 seconds
+      setTimeout(() => {
+        handleCloseModal();
+      }, 1500);
+      
+    } catch (error) {
+      console.error('Failed to update order:', error);
+      setUpdateFeedback({
+        message: 'Failed to update. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const handleViewOrder = (order: Order) => {
     setSelectedOrderDetails(order);
     setIsModalOpen(true);
@@ -190,13 +228,27 @@ const OrdersManagement = () => {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedOrderDetails(null);
+    setUpdateFeedback({ message: '', type: null });
   };
 
   if (isLoading) return <LoadingSpinner />;
   if (error) return <div>Error loading orders</div>;
 
+  // Add this keyframe animation to your global CSS or component styles
+  const keyframeStyles = `
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.3s ease-out forwards;
+    }
+  `;
+
   return (
     <div className="p-6">
+      <style>{keyframeStyles}</style>
+      
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
         <div>
@@ -347,7 +399,7 @@ const OrdersManagement = () => {
                     <td className="px-4 py-4">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.orderStatus)}`}>
                         {getStatusIcon(order.orderStatus)}
-                        <span className="ml-1 capitalize">{order.orderStatus}</span>
+                        <span className="ml-1 capitalize">{order.orderStatus.replace('_', ' ')}</span>
                       </span>
                     </td>
                     <td className="px-4 py-4">
@@ -376,145 +428,438 @@ const OrdersManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Order Details Modal */}
+      {/* Enhanced Order Details Modal */}
       {isModalOpen && selectedOrderDetails && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-2xl mx-4 overflow-y-auto max-h-[90vh]">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Order Details</CardTitle>
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-xl w-full max-w-4xl shadow-2xl overflow-hidden animate-fadeIn">
+            {/* Modal Header with attractive styling */}
+            <div className="bg-gradient-to-r from-emerald-600 to-emerald-800 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <ShoppingBag className="h-5 w-5" />
+                Order #<span className="font-mono">{selectedOrderDetails.id}</span>
+              </h2>
               <button 
                 onClick={handleCloseModal}
-                className="p-2 hover:bg-gray-100 rounded-full"
+                className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition-colors"
+                aria-label="Close modal"
               >
                 <X className="h-5 w-5" />
               </button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Order Information */}
-                <div className="grid grid-cols-2 gap-4">
+            </div>
+
+            <div className="divide-y divide-gray-100">
+              {/* Status Banner */}
+              <div className={`px-6 py-4 ${
+                selectedOrderDetails.orderStatus === 'delivered' ? 'bg-green-50' :
+                selectedOrderDetails.orderStatus === 'cancelled' ? 'bg-red-50' :
+                selectedOrderDetails.orderStatus === 'in_transit' ? 'bg-purple-50' :
+                selectedOrderDetails.orderStatus === 'confirmed' ? 'bg-blue-50' :
+                'bg-yellow-50'
+              }`}>
+                <div className="flex items-center">
+                  <div className={`p-2 rounded-full mr-4 ${
+                    selectedOrderDetails.orderStatus === 'delivered' ? 'bg-green-100 text-green-700' :
+                    selectedOrderDetails.orderStatus === 'cancelled' ? 'bg-red-100 text-red-700' :
+                    selectedOrderDetails.orderStatus === 'in_transit' ? 'bg-purple-100 text-purple-700' :
+                    selectedOrderDetails.orderStatus === 'confirmed' ? 'bg-blue-100 text-blue-700' :
+                    'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    {getStatusIcon(selectedOrderDetails.orderStatus)}
+                  </div>
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500">Order ID</h3>
-                    <p className="mt-1">#{selectedOrderDetails.id}</p>
+                    <p className="font-medium capitalize text-gray-900">
+                      {selectedOrderDetails.orderStatus.replace('_', ' ')} Order
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {selectedOrderDetails.orderStatus === 'delivered' ? 'This order has been successfully delivered.' :
+                      selectedOrderDetails.orderStatus === 'cancelled' ? 'This order has been cancelled.' :
+                      selectedOrderDetails.orderStatus === 'in_transit' ? 'This order is on its way to the customer.' :
+                      selectedOrderDetails.orderStatus === 'confirmed' ? 'This order has been confirmed and is being prepared.' :
+                      'This order is awaiting your confirmation.'}
+                    </p>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Date</h3>
-                    <p className="mt-1">{new Date(selectedOrderDetails.createdAt).toLocaleDateString()}</p>
-                  </div>
-                </div>
-
-                {/* Customer Information */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Customer</h3>
-                  <div className="mt-1">
-                    <p className="text-sm font-medium">{selectedOrderDetails.buyer.companyName || 'N/A'}</p>
-                    <p className="text-sm text-gray-500">{selectedOrderDetails.buyer.businessType || 'N/A'}</p>
-                  </div>
-                </div>
-
-                {/* Product Information */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Product</h3>
-                  <div className="mt-2 border rounded-lg p-3">
-                    <div className="flex justify-between">
-                      <div>
-                        <p className="font-medium">{selectedOrderDetails.listing.product.name}</p>
-                        <p className="text-sm text-gray-500">
-                          Quantity: {selectedOrderDetails.quantity} {selectedOrderDetails.listing.product.unit}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Category: {selectedOrderDetails.listing.product.category}
-                        </p>
-                      </div>
-                      <p className="font-medium">
-                        KES {parseFloat(selectedOrderDetails.totalPrice).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Order Status */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Current Status</h3>
-                  <div className="mt-2">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedOrderDetails.orderStatus)}`}>
-                      {getStatusIcon(selectedOrderDetails.orderStatus)}
-                      <span className="ml-1 capitalize">{selectedOrderDetails.orderStatus}</span>
-                    </span>
-                  </div>
-                </div>
-                
-                {/* Payment Status */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Payment Status</h3>
-                  <div className="mt-2">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(selectedOrderDetails.paymentStatus)}`}>
-                      {selectedOrderDetails.paymentStatus.charAt(0).toUpperCase() + selectedOrderDetails.paymentStatus.slice(1)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Update Status Section */}
-                {selectedOrderDetails.orderStatus === 'pending' && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Update Status</h3>
-                    <div className="mt-2 flex space-x-2">
-                      <button
-                        onClick={() => handleStatusUpdate(selectedOrderDetails.id, 'confirmed')}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                      >
-                        Confirm Order
-                      </button>
-                      <button
-                        onClick={() => handleStatusUpdate(selectedOrderDetails.id, 'cancelled')}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                      >
-                        Cancel Order
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {selectedOrderDetails.orderStatus === 'confirmed' && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Update Status</h3>
-                    <div className="mt-2">
-                      <button
-                        onClick={() => handleStatusUpdate(selectedOrderDetails.id, 'in_transit')}
-                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                      >
-                        Mark as In Transit
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {selectedOrderDetails.orderStatus === 'in_transit' && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Update Status</h3>
-                    <div className="mt-2">
-                      <button
-                        onClick={() => handleStatusUpdate(selectedOrderDetails.id, 'delivered')}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                      >
-                        Mark as Delivered
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Close Button */}
-                <div className="flex justify-end mt-6">
-                  <button 
-                    onClick={handleCloseModal}
-                    className="px-4 py-2 border rounded-lg hover:bg-gray-50"
-                  >
-                    Close
-                  </button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+
+              {/* Success/Error Feedback */}
+              {updateFeedback.type && (
+                <div className={`px-6 py-3 ${
+                  updateFeedback.type === 'success' 
+                    ? 'bg-green-50 border-green-100' 
+                    : 'bg-red-50 border-red-100'
+                }`}>
+                  <div className="flex items-center">
+                    {updateFeedback.type === 'success' ? (
+                      <CheckCircle className="w-5 h-5 mr-2 text-green-600" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 mr-2 text-red-600" />
+                    )}
+                    <p className={`${
+                      updateFeedback.type === 'success' 
+                        ? 'text-green-800' 
+                        : 'text-red-800'
+                    }`}>{updateFeedback.message}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Main Content Area */}
+              <div className="px-6 py-6 max-h-[60vh] overflow-y-auto">
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* Left Column */}
+                  <div className="space-y-6">
+                    {/* Order Information */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h3 className="text-sm uppercase tracking-wider font-semibold text-gray-500 mb-3 flex items-center">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        Order Details
+                      </h3>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-500">Date Placed</span>
+                          <span className="font-medium">{new Date(selectedOrderDetails.createdAt).toLocaleDateString('en-US', {
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric'
+                          })}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-500">Order ID</span>
+                          <span className="font-mono font-medium">#{selectedOrderDetails.id}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Payment Information */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h3 className="text-sm uppercase tracking-wider font-semibold text-gray-500 mb-3 flex items-center">
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        Payment Information
+                      </h3>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-500">Payment Status</span>
+                          <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(selectedOrderDetails.paymentStatus)}`}>
+                            {selectedOrderDetails.paymentStatus.charAt(0).toUpperCase() + selectedOrderDetails.paymentStatus.slice(1)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-500">Total Amount</span>
+                          <span className="font-bold text-lg">KES {parseFloat(selectedOrderDetails.totalPrice).toLocaleString()}</span>
+                        </div>
+                      </div>
+
+                      {/* Payment Status Update Section */}
+                      {selectedOrderDetails.paymentStatus !== 'paid' && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <h4 className="text-xs font-medium text-gray-500 mb-2">Update Payment Status</h4>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleStatusUpdate(selectedOrderDetails.id, { paymentStatus: 'paid' })}
+                              disabled={isUpdating}
+                              className="flex items-center justify-center px-3 py-1 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isUpdating ? (
+                                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                              ) : (
+                                <DollarSign className="w-3 h-3 mr-1" />
+                              )}
+                              Mark as Paid
+                            </button>
+                            {selectedOrderDetails.paymentStatus !== 'failed' && (
+                              <button
+                                onClick={() => handleStatusUpdate(selectedOrderDetails.id, { paymentStatus: 'failed' })}
+                                disabled={isUpdating}
+                                className="flex items-center justify-center px-3 py-1 border border-red-600 text-red-600 text-xs rounded hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {isUpdating ? (
+                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                ) : (
+                                  <XCircle className="w-3 h-3 mr-1" />
+                                )}
+                                Mark as Failed
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Customer Information */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h3 className="text-sm uppercase tracking-wider font-semibold text-gray-500 mb-3 flex items-center">
+                        <User className="mr-2 h-4 w-4" />
+                        Customer Information
+                      </h3>
+                      <div className="space-y-3">
+                        <div>
+                          <p className="font-medium">{selectedOrderDetails.buyer.companyName || 'Individual Buyer'}</p>
+                          <p className="text-sm text-gray-500">{selectedOrderDetails.buyer.businessType || 'N/A'}</p>
+                        </div>
+                        <div className="pt-2 flex gap-2">
+                          <button className="text-xs flex items-center text-emerald-600 hover:text-emerald-800 transition-colors">
+                            <Phone className="h-3 w-3 mr-1" />
+                            Call
+                          </button>
+                          <button className="text-xs flex items-center text-emerald-600 hover:text-emerald-800 transition-colors">
+                            <MessageSquare className="h-3 w-3 mr-1" />
+                            Message
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column */}
+                  <div className="space-y-6">
+                    {/* Product Information */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h3 className="text-sm uppercase tracking-wider font-semibold text-gray-500 mb-3 flex items-center">
+                        <Package className="mr-2 h-4 w-4" />
+                        Product Information
+                      </h3>
+                      <div className="flex items-center space-x-4 py-2">
+                        {selectedOrderDetails.listing.product.imageUrl ? (
+                          <img 
+                            src={selectedOrderDetails.listing.product.imageUrl} 
+                            alt={selectedOrderDetails.listing.product.name}
+                            className="w-16 h-16 object-cover rounded-md" 
+                          />
+                        ) : (
+                          <div className="w-16 h-16 bg-gray-200 rounded-md flex items-center justify-center">
+                            <Package className="w-8 h-8 text-gray-400" />
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <p className="font-medium">{selectedOrderDetails.listing.product.name}</p>
+                          <p className="text-sm text-gray-500">
+                            {selectedOrderDetails.quantity} {selectedOrderDetails.listing.product.unit}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Category: {selectedOrderDetails.listing.product.category}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500">Unit Price</p>
+                          <p className="font-medium">
+                            KES {parseFloat(selectedOrderDetails.listing.price.toString()).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="flex justify-between items-center">
+                          <p className="font-medium">Total</p>
+                          <p className="font-bold">
+                            KES {parseFloat(selectedOrderDetails.totalPrice).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Status Timeline */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h3 className="text-sm uppercase tracking-wider font-semibold text-gray-500 mb-3 flex items-center">
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Order Timeline
+                      </h3>
+                      <div className="space-y-4">
+                        <div className="flex">
+                          <div className="flex flex-col items-center mr-4">
+                            <div className={`h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center`}>
+                              <CheckCircle className="h-3 w-3 text-white" />
+                              </div>
+                            <div className="h-full w-0.5 bg-gray-200 mt-1"></div>
+                          </div>
+                          <div>
+                            <p className="font-medium">Order Placed</p>
+                            <p className="text-xs text-gray-500">{new Date(selectedOrderDetails.createdAt).toLocaleString()}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex">
+                          <div className="flex flex-col items-center mr-4">
+                            <div className={`h-5 w-5 rounded-full ${
+                              selectedOrderDetails.orderStatus === 'confirmed' || 
+                              selectedOrderDetails.orderStatus === 'in_transit' || 
+                              selectedOrderDetails.orderStatus === 'delivered' ? 'bg-emerald-500' : 'bg-gray-300'
+                            } flex items-center justify-center`}>
+                              {(selectedOrderDetails.orderStatus === 'confirmed' || 
+                                selectedOrderDetails.orderStatus === 'in_transit' || 
+                                selectedOrderDetails.orderStatus === 'delivered') && 
+                                <CheckCircle className="h-3 w-3 text-white" />}
+                            </div>
+                            <div className="h-full w-0.5 bg-gray-200 mt-1"></div>
+                          </div>
+                          <div>
+                            <p className="font-medium">Order Confirmed</p>
+                            <p className="text-xs text-gray-500">
+                              {selectedOrderDetails.orderStatus === 'confirmed' || 
+                              selectedOrderDetails.orderStatus === 'in_transit' || 
+                              selectedOrderDetails.orderStatus === 'delivered' ? 'Order has been confirmed' : 'Awaiting confirmation'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex">
+                          <div className="flex flex-col items-center mr-4">
+                            <div className={`h-5 w-5 rounded-full ${
+                              selectedOrderDetails.orderStatus === 'in_transit' || 
+                              selectedOrderDetails.orderStatus === 'delivered' ? 'bg-emerald-500' : 'bg-gray-300'
+                            } flex items-center justify-center`}>
+                              {(selectedOrderDetails.orderStatus === 'in_transit' || 
+                                selectedOrderDetails.orderStatus === 'delivered') && 
+                                <CheckCircle className="h-3 w-3 text-white" />}
+                            </div>
+                            <div className="h-full w-0.5 bg-gray-200 mt-1"></div>
+                          </div>
+                          <div>
+                            <p className="font-medium">In Transit</p>
+                            <p className="text-xs text-gray-500">
+                              {selectedOrderDetails.orderStatus === 'in_transit' || 
+                              selectedOrderDetails.orderStatus === 'delivered' ? 'Order is on its way' : 'Not yet shipped'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex">
+                          <div className="flex flex-col items-center mr-4">
+                            <div className={`h-5 w-5 rounded-full ${
+                              selectedOrderDetails.orderStatus === 'delivered' ? 'bg-emerald-500' : 'bg-gray-300'
+                            } flex items-center justify-center`}>
+                              {selectedOrderDetails.orderStatus === 'delivered' && 
+                                <CheckCircle className="h-3 w-3 text-white" />}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="font-medium">Delivered</p>
+                            <p className="text-xs text-gray-500">
+                              {selectedOrderDetails.orderStatus === 'delivered' ? 'Order has been delivered' : 'Not yet delivered'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Update Order Status Section - Enhanced with better UI feedback */}
+                {selectedOrderDetails.orderStatus !== 'delivered' && selectedOrderDetails.orderStatus !== 'cancelled' && (
+                  <div className="mt-6 border-t border-gray-200 pt-6">
+                    <h3 className="text-sm uppercase tracking-wider font-semibold text-gray-500 mb-4 flex items-center">
+                      <ArrowRight className="mr-2 h-4 w-4" />
+                      Update Order Status
+                    </h3>
+                    
+                    {selectedOrderDetails.orderStatus === 'pending' && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <button
+                          onClick={() => handleStatusUpdate(selectedOrderDetails.id, { orderStatus: 'confirmed' })}
+                          disabled={isUpdating}
+                          className="inline-flex items-center justify-center px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isUpdating ? (
+                            <>
+                              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                              Updating...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="w-5 h-5 mr-2" />
+                              Confirm Order
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleStatusUpdate(selectedOrderDetails.id, { orderStatus: 'cancelled' })}
+                          disabled={isUpdating}
+                          className="inline-flex items-center justify-center px-4 py-3 bg-white border border-red-600 text-red-600 rounded-lg hover:bg-red-50 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isUpdating ? (
+                            <>
+                              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                              Updating...
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="w-5 h-5 mr-2" />
+                              Cancel Order
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+
+                    {selectedOrderDetails.orderStatus === 'confirmed' && (
+                      <div>
+                        <button
+                          onClick={() => handleStatusUpdate(selectedOrderDetails.id, { orderStatus: 'in_transit' })}
+                          disabled={isUpdating}
+                          className="inline-flex items-center justify-center px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isUpdating ? (
+                            <>
+                              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                              Updating...
+                            </>
+                          ) : (
+                            <>
+                              <Truck className="w-5 h-5 mr-2" />
+                              Mark as In Transit
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+
+                    {selectedOrderDetails.orderStatus === 'in_transit' && (
+                      <div>
+                        <button
+                          onClick={() => handleStatusUpdate(selectedOrderDetails.id, { orderStatus: 'delivered' })}
+                          disabled={isUpdating}
+                          className="inline-flex items-center justify-center px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-green-500 w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isUpdating ? (
+                            <>
+                              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                              Updating...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="w-5 h-5 mr-2" />
+                              Mark as Delivered
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between">
+                <button 
+                  onClick={handleCloseModal}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                >
+                  Close
+                </button>
+                
+                {selectedOrderDetails.orderStatus !== 'delivered' && selectedOrderDetails.orderStatus !== 'cancelled' && (
+                  <div className="flex gap-2">
+                    <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 flex items-center">
+                      <Download className="w-4 h-4 mr-2" />
+                      Export
+                    </button>
+                    <button className="px-4 py-2 border border-emerald-600 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 flex items-center">
+                      <Send className="w-4 h-4 mr-2" />
+                      Contact Buyer
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
