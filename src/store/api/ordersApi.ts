@@ -54,6 +54,12 @@ interface Order {
   listing: Listing;
 }
 
+interface OrdersResponse {
+  success: boolean;
+  message: string;
+  data: Order[];
+}
+
 
 export const ordersApi = createApi({
   reducerPath: 'ordersApi',
@@ -78,6 +84,18 @@ export const ordersApi = createApi({
       query: (id) => `/orders/${id}`,
       providesTags: (_result, _error, id) => [{ type: 'Orders', id }],
     }),
+     // Fixed farmer orders endpoint
+     getFarmerOrders: builder.query<OrdersResponse, number>({
+      query: (farmerId) => `/orders/farmer/${farmerId}`,
+      providesTags: (result) => 
+        result?.data
+          ? [
+              ...result.data.map((order) => ({ type: 'Orders' as const, id: order.id })),
+              { type: 'Orders', id: 'LIST' },
+            ]
+          : [{ type: 'Orders', id: 'LIST' }],
+    }),
+
 
     updateOrderStatus: builder.mutation<Order, { 
       id: number; 
