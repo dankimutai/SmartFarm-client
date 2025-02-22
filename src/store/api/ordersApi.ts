@@ -60,6 +60,11 @@ interface OrdersResponse {
   data: Order[];
 }
 
+interface OrderUpdateData {
+  orderStatus?: Order['orderStatus'];
+  paymentStatus?: Order['paymentStatus'];
+}
+
 
 export const ordersApi = createApi({
   reducerPath: 'ordersApi',
@@ -97,28 +102,20 @@ export const ordersApi = createApi({
     }),
 
 
-    updateOrderStatus: builder.mutation<Order, { 
+    updateOrder: builder.mutation<Order, { 
       id: number; 
-      status: Order['orderStatus'];
+      updateData: OrderUpdateData;
     }>({
-      query: ({ id, status }) => ({
-        url: `/orders/${id}/status`,
+      query: ({ id, updateData }) => ({
+        url: `/orders/${id}`,
         method: 'PATCH',
-        body: { status },
+        body: updateData,
       }),
-      invalidatesTags: ['Orders'],
-    }),
-
-    updatePaymentStatus: builder.mutation<Order, { 
-      id: number; 
-      status: Order['paymentStatus'];
-    }>({
-      query: ({ id, status }) => ({
-        url: `/orders/${id}/payment`,
-        method: 'PATCH',
-        body: { status },
-      }),
-      invalidatesTags: ['Orders'],
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: 'Orders', id },
+        { type: 'Orders', id: 'LIST' }
+      ],
     }),
   }),
 });
+

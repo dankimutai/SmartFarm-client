@@ -80,7 +80,7 @@ const OrdersManagement = () => {
   // Ensure we're accessing the data correctly
   const orders = ordersResponse?.data || [];
   console.log('Orders:', orders);
-  const [updateOrderStatus] = ordersApi.useUpdateOrderStatusMutation();
+  const [updateOrder] = ordersApi.useUpdateOrderMutation();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -168,15 +168,20 @@ const OrdersManagement = () => {
     }
   };
 
-  const handleStatusUpdate = async (orderId: number, newStatus: Order['orderStatus']) => {
-    try {
-      await updateOrderStatus({ id: orderId, status: newStatus }).unwrap();
-      handleCloseModal();
-    } catch (error) {
-      console.error('Failed to update order status:', error);
-    }
-  };
-
+ // Update the handleStatusUpdate function to use the new mutation
+ const handleStatusUpdate = async (orderId: number, newStatus: Order['orderStatus']) => {
+  try {
+    await updateOrder({
+      id: orderId,
+      updateData: {
+        orderStatus: newStatus
+      }
+    }).unwrap();
+    handleCloseModal();
+  } catch (error) {
+    console.error('Failed to update order status:', error);
+  }
+}; 
   const handleViewOrder = (order: Order) => {
     setSelectedOrderDetails(order);
     setIsModalOpen(true);
