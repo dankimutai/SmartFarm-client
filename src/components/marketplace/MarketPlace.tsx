@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent } from '../../components/ui/card';
 import { marketplaceApi } from '../../store/api/marketPlaceApi';
+import { ordersApi } from '../../store/api/ordersApi';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import type { RootState } from '../../store/store';
@@ -16,6 +17,8 @@ import {
   RiEyeLine,
 } from 'react-icons/ri';
 import { toast } from 'react-hot-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
+import { Button } from '../common/Button';
 
 interface CartItem {
   id: number;
@@ -23,6 +26,8 @@ interface CartItem {
   price: string;
   quantity: number;
   unit: string;
+  listingId: number;
+  availableQuantity: number;
 }
 
 const Marketplace = () => {
@@ -30,12 +35,35 @@ const Marketplace = () => {
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
+  const [orderProcessing, setOrderProcessing] = useState(false);
+  const [currentOrderItem, setCurrentOrderItem] = useState<CartItem | null>(null);
+  const [orderQuantity, setOrderQuantity] = useState<number>(1);
 
   const navigate = useNavigate();
-  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
 
   const { data: listingsResponse, isLoading, error } = marketplaceApi.useGetListingsQuery();
+  const [createOrder] = ordersApi.useCreateOrderMutation();
+  
   const listings = listingsResponse?.data || [];
+
+  // Load cart from localStorage on component mount
+  useEffect(() => {
+    const savedCart = localStorage.getItem('smartfarm-cart');
+    if (savedCart) {
+      try {
+        setCart(JSON.parse(savedCart));
+      } catch (e) {
+        console.error('Failed to parse cart from localStorage', e);
+      }
+    }
+  }, []);
+
+  // Save cart to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('smartfarm-cart', JSON.stringify(cart));
+  }, [cart]);
 
   // Extract unique categories from listings
   const categories = useMemo(() => {
@@ -64,16 +92,81 @@ const Marketplace = () => {
         ...cart,
         {
           id: listing.id,
+          listingId: listing.id, // Ensure we have the listingId for API calls
           name: listing.product.name,
           price: listing.price,
           quantity: 1,
           unit: listing.product.unit,
+          availableQuantity: parseFloat(listing.quantity)
         },
       ]);
     }
 
     toast.success(`Added ${listing.product.name} to cart`);
   };
+
+  // Handle direct purchase
+  const handleBuyNow = (listing: any) => {
+    if (!isAuthenticated) {
+      toast.error('Please login to make a purchase');
+      navigate('/auth/login');
+      return;
+    }
+
+    setCurrentOrderItem({
+      id: listing.id,
+      listingId: listing.id,
+      name: listing.product.name,
+      price: listing.price,
+      quantity: 1,
+      unit: listing.product.unit,
+      availableQuantity: parseFloat(listing.quantity)
+    });
+    setOrderQuantity(1);
+    setIsOrderDialogOpen(true);
+  };
+
+  // Handle order submission
+  // Handle order submission
+const handlePlaceOrder = async () => {
+  if (!currentOrderItem || !user || !user.buyerId) {
+    toast.error('User profile is incomplete. Please update your buyer profile first.');
+    return;
+  }
+  
+  try {
+    setOrderProcessing(true);
+    
+    // Calculate the total price based on quantity and item price
+    const totalPrice = orderQuantity * parseFloat(currentOrderItem.price);
+    
+    const orderData = {
+      buyerId: parseInt(user.buyerId.toString()), // Ensure buyerId is a number
+      listingId: parseInt(currentOrderItem.listingId.toString()), // Ensure listingId is a number
+      quantity: orderQuantity, // Send as a number, not a string
+      totalPrice: totalPrice // Send as a number, not a string
+    };
+    
+    console.log('Sending order data:', orderData);
+    
+    await createOrder(orderData).unwrap();
+    
+    toast.success('Order placed successfully!');
+    setIsOrderDialogOpen(false);
+    
+    // Remove the ordered item from the cart if it exists
+    const updatedCart = cart.filter(item => item.id !== currentOrderItem.id);
+    setCart(updatedCart);
+    
+    // Redirect to orders page
+    navigate('/buyer/orders');
+  } catch (error) {
+    console.error('Order failed', error);
+    toast.error('Failed to place order. Please try again.');
+  } finally {
+    setOrderProcessing(false);
+  }
+};
 
   // Filter listings based on search term and selected category
   const filteredListings = useMemo(() => {
@@ -245,21 +338,28 @@ const Marketplace = () => {
                 </div>
 
                 {/* Card Actions */}
-                <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => navigate(`/marketplace/${listing.id}`)}
-                    className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 text-sm"
                   >
-                    <RiEyeLine className="w-5 h-5" />
+                    <RiEyeLine className="w-4 h-4" />
                     View Details
                   </button>
 
                   <button
                     onClick={() => addToCart(listing)}
-                    className="w-full px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 text-sm"
                   >
-                    <RiShoppingCartLine className="w-5 h-5" />
+                    <RiShoppingCartLine className="w-4 h-4" />
                     Add to Cart
+                  </button>
+                  
+                  <button
+                    onClick={() => handleBuyNow(listing)}
+                    className="col-span-2 px-4 py-2 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800 transition-colors flex items-center justify-center gap-2 mt-2 text-sm"
+                  >
+                    Buy Now
                   </button>
                 </div>
               </CardContent>
@@ -276,12 +376,103 @@ const Marketplace = () => {
           </div>
         )}
       </div>
+      
+      {/* Cart Drawer */}
       <CartDrawer
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
         cart={cart}
         setCart={setCart}
+        onCheckout={(items) => {
+          // Handle checkout from cart
+          if (items.length === 0) {
+            toast.error('Your cart is empty');
+            return;
+          }
+          navigate('/buyer/checkout', { state: { items } });
+        }}
       />
+      
+      {/* Order Dialog */}
+      <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirm Your Order</DialogTitle>
+          </DialogHeader>
+          
+          {currentOrderItem && (
+            <div className="py-4">
+              <div className="mb-4">
+                <h3 className="font-medium text-lg">{currentOrderItem.name}</h3>
+                <p className="text-gray-600">
+                  KES {parseFloat(currentOrderItem.price).toLocaleString()} per {currentOrderItem.unit}
+                </p>
+              </div>
+              
+              <div className="mb-4">
+                <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
+                  Quantity ({currentOrderItem.unit})
+                </label>
+                <div className="flex items-center">
+                  <button 
+                    className="p-2 bg-gray-200 rounded-l-md"
+                    onClick={() => setOrderQuantity(Math.max(1, orderQuantity - 1))}
+                  >
+                    -
+                  </button>
+                  <input
+                    id="quantity"
+                    type="number"
+                    value={orderQuantity}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      if (value > 0 && value <= currentOrderItem.availableQuantity) {
+                        setOrderQuantity(value);
+                      }
+                    }}
+                    min="1"
+                    max={currentOrderItem.availableQuantity}
+                    className="p-2 w-20 text-center border-t border-b"
+                  />
+                  <button 
+                    className="p-2 bg-gray-200 rounded-r-md"
+                    onClick={() => setOrderQuantity(Math.min(currentOrderItem.availableQuantity, orderQuantity + 1))}
+                  >
+                    +
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Available: {currentOrderItem.availableQuantity} {currentOrderItem.unit}
+                </p>
+              </div>
+              
+              <div className="bg-gray-50 p-3 rounded-md mb-4">
+                <div className="flex justify-between mb-2">
+                  <span>Subtotal:</span>
+                  <span>KES {(parseFloat(currentOrderItem.price) * orderQuantity).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between font-bold text-lg">
+                  <span>Total:</span>
+                  <span>KES {(parseFloat(currentOrderItem.price) * orderQuantity).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsOrderDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handlePlaceOrder} 
+              disabled={orderProcessing || !currentOrderItem}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {orderProcessing ? 'Processing...' : 'Place Order'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

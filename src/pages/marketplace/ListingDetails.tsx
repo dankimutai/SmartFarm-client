@@ -102,7 +102,7 @@ const ListingDetails = () => {
             {/* Product Image and Category */}
             <div className="relative">
               <img
-                src={Farm1}
+                src={listing.product.imageUrl || Farm1}
                 alt={listing.product.name}
                 className="w-full h-[500px] object-cover"
               />
