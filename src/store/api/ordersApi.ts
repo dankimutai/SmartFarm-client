@@ -1,6 +1,9 @@
+// src/store/api/ordersApi.ts
+
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import type { RootState } from '../store';
 
+// Types
 interface Farmer {
   id: number;
   userId: number;
@@ -38,7 +41,18 @@ interface Listing {
   product: Product;
 }
 
-interface Order {
+interface Logistics {
+  id: number;
+  orderId: number;
+  providerId: number;
+  status: string;
+  trackingCode: string;
+  estimatedDelivery: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Order {
   id: number;
   buyerId: number;
   listingId: number;
@@ -48,8 +62,9 @@ interface Order {
   paymentStatus: 'pending' | 'paid' | 'failed';
   createdAt: string;
   updatedAt: string;
-  buyer: Buyer;
   listing: Listing;
+  logistics: Logistics | null;
+  buyer: Buyer; // Added buyer property to match what OrdersManagement expects
 }
 
 interface OrdersResponse {
@@ -106,8 +121,9 @@ export const ordersApi = createApi({
       providesTags: (_result, _error, id) => [{ type: 'Orders', id }],
     }),
 
-    getBuyerOrders: builder.query<OrdersResponse, number>({
-      query: (buyerId) => `/orders/user/${buyerId}`, // Correct endpoint
+    // This endpoint now uses userId instead of buyerId
+    getUserOrders: builder.query<OrdersResponse, number>({
+      query: (userId) => `/orders/user/${userId}`,
       providesTags: (result) => 
         result?.data
           ? [

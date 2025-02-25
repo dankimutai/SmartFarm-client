@@ -7,10 +7,17 @@ import {
   Truck,
   AlertCircle,
   Loader2,
-  Calendar
+  Calendar,
+  ShoppingBag
 } from 'lucide-react';
 import { marketplaceApi } from '../../store/api/marketPlaceApi';
+import { ordersApi } from '../../store/api/ordersApi';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../store/store';
 import type { Listing } from '../../types/marketplace.types';
+import { toast } from 'react-hot-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
+import { Button } from '../../components/common/Button';
 
 const categories = [
   'All Categories',
@@ -38,6 +45,15 @@ const BuyerMarketplace = () => {
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [currentPage, setCurrentPage] = useState(1);
   
+  // Order related states
+  const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
+  const [currentListing, setCurrentListing] = useState<Listing | null>(null);
+  const [orderQuantity, setOrderQuantity] = useState<number>(1);
+  const [orderProcessing, setOrderProcessing] = useState(false);
+
+  const { user } = useSelector((state: RootState) => state.auth);
+  const [createOrder] = ordersApi.useCreateOrderMutation();
+  
   const { data, error, isLoading, isFetching } = marketplaceApi.useGetListingsQuery({
     page: currentPage,
     limit: 12,
@@ -62,6 +78,47 @@ const BuyerMarketplace = () => {
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  const handlePlaceOrder = (listing: Listing) => {
+    if (!user || !user.buyerId) {
+      toast.error('Please complete your buyer profile before placing orders');
+      return;
+    }
+    
+    setCurrentListing(listing);
+    setOrderQuantity(1);
+    setIsOrderDialogOpen(true);
+  };
+
+  const submitOrder = async () => {
+    if (!currentListing || !user?.buyerId) return;
+    
+    try {
+      setOrderProcessing(true);
+      
+      // Calculate total price - use parseFloat to convert string to number
+      const totalPrice = orderQuantity * parseFloat(currentListing.price.toString());
+      
+      const orderData = {
+        buyerId: parseInt(user.buyerId.toString()),
+        listingId: currentListing.id,
+        quantity: orderQuantity,
+        totalPrice: totalPrice
+      };
+      
+      console.log('Submitting order:', orderData);
+      
+      await createOrder(orderData).unwrap();
+      
+      toast.success('Order placed successfully!');
+      setIsOrderDialogOpen(false);
+    } catch (error) {
+      console.error('Failed to place order:', error);
+      toast.error('Failed to place order. Please try again.');
+    } finally {
+      setOrderProcessing(false);
+    }
   };
 
   if (error) {
@@ -199,16 +256,20 @@ const BuyerMarketplace = () => {
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <p className="text-lg font-bold text-gray-900">
-                      KES {parseFloat(listing.price).toLocaleString()}/{listing.product.unit}
+                      KES {parseFloat(listing.price.toString()).toLocaleString()}/{listing.product.unit}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {parseFloat(listing.quantity).toLocaleString()} {listing.product.unit} available
+                      {parseFloat(listing.quantity.toString()).toLocaleString()} {listing.product.unit} available
                     </p>
                   </div>
                 </div>
 
-                <button className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                  Add to Cart
+                <button 
+                  className="w-full px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
+                  onClick={() => handlePlaceOrder(listing)}
+                >
+                  <ShoppingBag className="h-4 w-4" />
+                  Place Order
                 </button>
 
                 <div className="mt-3 flex items-center justify-center text-sm text-gray-500">
@@ -229,6 +290,95 @@ const BuyerMarketplace = () => {
           <p className="text-gray-500 mt-2">Try adjusting your search or filter criteria</p>
         </div>
       )}
+
+      {/* Order Dialog */}
+      <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Place Order</DialogTitle>
+          </DialogHeader>
+          
+          {currentListing && (
+            <div className="py-4">
+              <div className="mb-4">
+                <h3 className="font-medium text-lg">{currentListing.product.name}</h3>
+                <p className="text-gray-600">
+                  KES {parseFloat(currentListing.price.toString()).toLocaleString()} per {currentListing.product.unit}
+                </p>
+              </div>
+              
+              <div className="mb-4">
+                <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
+                  Quantity ({currentListing.product.unit})
+                </label>
+                <div className="flex items-center">
+                  <button 
+                    className="p-2 bg-gray-200 rounded-l-md"
+                    onClick={() => setOrderQuantity(Math.max(1, orderQuantity - 1))}
+                  >
+                    -
+                  </button>
+                  <input
+                    id="quantity"
+                    type="number"
+                    value={orderQuantity}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      if (value > 0 && value <= parseFloat(currentListing.quantity.toString())) {
+                        setOrderQuantity(value);
+                      }
+                    }}
+                    min="1"
+                    max={parseFloat(currentListing.quantity.toString())}
+                    className="p-2 w-20 text-center border-t border-b"
+                  />
+                  <button 
+                    className="p-2 bg-gray-200 rounded-r-md"
+                    onClick={() => setOrderQuantity(Math.min(parseFloat(currentListing.quantity.toString()), orderQuantity + 1))}
+                  >
+                    +
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Available: {parseFloat(currentListing.quantity.toString())} {currentListing.product.unit}
+                </p>
+              </div>
+              
+              <div className="bg-gray-50 p-3 rounded-md mb-4">
+                <div className="flex justify-between mb-2">
+                  <span>Subtotal:</span>
+                  <span>KES {(parseFloat(currentListing.price.toString()) * orderQuantity).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between font-bold text-lg">
+                  <span>Total:</span>
+                  <span>KES {(parseFloat(currentListing.price.toString()) * orderQuantity).toLocaleString()}</span>
+                </div>
+              </div>
+              
+              <div className="bg-blue-50 p-3 rounded-md mb-4 text-sm text-blue-800 flex items-start">
+                <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+                <p>
+                  After placing your order, you'll need to arrange delivery with the farmer.
+                  Payment will be processed upon delivery.
+                </p>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsOrderDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={submitOrder} 
+              disabled={orderProcessing || !currentListing}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {orderProcessing ? 'Processing...' : 'Confirm Order'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
