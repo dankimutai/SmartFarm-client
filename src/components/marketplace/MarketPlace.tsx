@@ -17,7 +17,13 @@ import {
   RiEyeLine,
 } from 'react-icons/ri';
 import { toast } from 'react-hot-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '../../components/ui/dialog';
 import { Button } from '../common/Button';
 
 interface CartItem {
@@ -45,7 +51,7 @@ const Marketplace = () => {
 
   const { data: listingsResponse, isLoading, error } = marketplaceApi.useGetListingsQuery();
   const [createOrder] = ordersApi.useCreateOrderMutation();
-  
+
   const listings = listingsResponse?.data || [];
 
   // Load cart from localStorage on component mount
@@ -97,7 +103,7 @@ const Marketplace = () => {
           price: listing.price,
           quantity: 1,
           unit: listing.product.unit,
-          availableQuantity: parseFloat(listing.quantity)
+          availableQuantity: parseFloat(listing.quantity),
         },
       ]);
     }
@@ -120,7 +126,7 @@ const Marketplace = () => {
       price: listing.price,
       quantity: 1,
       unit: listing.product.unit,
-      availableQuantity: parseFloat(listing.quantity)
+      availableQuantity: parseFloat(listing.quantity),
     });
     setOrderQuantity(1);
     setIsOrderDialogOpen(true);
@@ -128,45 +134,45 @@ const Marketplace = () => {
 
   // Handle order submission
   // Handle order submission
-const handlePlaceOrder = async () => {
-  if (!currentOrderItem || !user || !user.buyerId) {
-    toast.error('User profile is incomplete. Please update your buyer profile first.');
-    return;
-  }
-  
-  try {
-    setOrderProcessing(true);
-    
-    // Calculate the total price based on quantity and item price
-    const totalPrice = orderQuantity * parseFloat(currentOrderItem.price);
-    
-    const orderData = {
-      buyerId: parseInt(user.buyerId.toString()), // Ensure buyerId is a number
-      listingId: parseInt(currentOrderItem.listingId.toString()), // Ensure listingId is a number
-      quantity: orderQuantity, // Send as a number, not a string
-      totalPrice: totalPrice // Send as a number, not a string
-    };
-    
-    console.log('Sending order data:', orderData);
-    
-    await createOrder(orderData).unwrap();
-    
-    toast.success('Order placed successfully!');
-    setIsOrderDialogOpen(false);
-    
-    // Remove the ordered item from the cart if it exists
-    const updatedCart = cart.filter(item => item.id !== currentOrderItem.id);
-    setCart(updatedCart);
-    
-    // Redirect to orders page
-    navigate('/buyer/orders');
-  } catch (error) {
-    console.error('Order failed', error);
-    toast.error('Failed to place order. Please try again.');
-  } finally {
-    setOrderProcessing(false);
-  }
-};
+  const handlePlaceOrder = async () => {
+    if (!currentOrderItem || !user || !user.buyerId) {
+      toast.error('User profile is incomplete. Please update your buyer profile first.');
+      return;
+    }
+
+    try {
+      setOrderProcessing(true);
+
+      // Calculate the total price based on quantity and item price
+      const totalPrice = orderQuantity * parseFloat(currentOrderItem.price);
+
+      const orderData = {
+        buyerId: parseInt(user.buyerId.toString()), // Ensure buyerId is a number
+        listingId: parseInt(currentOrderItem.listingId.toString()), // Ensure listingId is a number
+        quantity: orderQuantity, // Send as a number, not a string
+        totalPrice: totalPrice, // Send as a number, not a string
+      };
+
+      console.log('Sending order data:', orderData);
+
+      await createOrder(orderData).unwrap();
+
+      toast.success('Order placed successfully!');
+      setIsOrderDialogOpen(false);
+
+      // Remove the ordered item from the cart if it exists
+      const updatedCart = cart.filter((item) => item.id !== currentOrderItem.id);
+      setCart(updatedCart);
+
+      // Redirect to orders page
+      navigate('/buyer/orders');
+    } catch (error) {
+      console.error('Order failed', error);
+      toast.error('Failed to place order. Please try again.');
+    } finally {
+      setOrderProcessing(false);
+    }
+  };
 
   // Filter listings based on search term and selected category
   const filteredListings = useMemo(() => {
@@ -354,7 +360,7 @@ const handlePlaceOrder = async () => {
                     <RiShoppingCartLine className="w-4 h-4" />
                     Add to Cart
                   </button>
-                  
+
                   <button
                     onClick={() => handleBuyNow(listing)}
                     className="col-span-2 px-4 py-2 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800 transition-colors flex items-center justify-center gap-2 mt-2 text-sm"
@@ -376,7 +382,7 @@ const handlePlaceOrder = async () => {
           </div>
         )}
       </div>
-      
+
       {/* Cart Drawer */}
       <CartDrawer
         isOpen={isCartOpen}
@@ -389,32 +395,38 @@ const handlePlaceOrder = async () => {
             toast.error('Your cart is empty');
             return;
           }
-          navigate('/buyer/checkout', { state: { items } });
+
+          // Navigate to the checkout page with the selected items
+          navigate('/buyer/checkout', {
+            state: {
+              items: items,
+            },
+          });
         }}
       />
-      
       {/* Order Dialog */}
       <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Confirm Your Order</DialogTitle>
           </DialogHeader>
-          
+
           {currentOrderItem && (
             <div className="py-4">
               <div className="mb-4">
                 <h3 className="font-medium text-lg">{currentOrderItem.name}</h3>
                 <p className="text-gray-600">
-                  KES {parseFloat(currentOrderItem.price).toLocaleString()} per {currentOrderItem.unit}
+                  KES {parseFloat(currentOrderItem.price).toLocaleString()} per{' '}
+                  {currentOrderItem.unit}
                 </p>
               </div>
-              
+
               <div className="mb-4">
                 <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
                   Quantity ({currentOrderItem.unit})
                 </label>
                 <div className="flex items-center">
-                  <button 
+                  <button
                     className="p-2 bg-gray-200 rounded-l-md"
                     onClick={() => setOrderQuantity(Math.max(1, orderQuantity - 1))}
                   >
@@ -434,9 +446,13 @@ const handlePlaceOrder = async () => {
                     max={currentOrderItem.availableQuantity}
                     className="p-2 w-20 text-center border-t border-b"
                   />
-                  <button 
+                  <button
                     className="p-2 bg-gray-200 rounded-r-md"
-                    onClick={() => setOrderQuantity(Math.min(currentOrderItem.availableQuantity, orderQuantity + 1))}
+                    onClick={() =>
+                      setOrderQuantity(
+                        Math.min(currentOrderItem.availableQuantity, orderQuantity + 1)
+                      )
+                    }
                   >
                     +
                   </button>
@@ -445,26 +461,30 @@ const handlePlaceOrder = async () => {
                   Available: {currentOrderItem.availableQuantity} {currentOrderItem.unit}
                 </p>
               </div>
-              
+
               <div className="bg-gray-50 p-3 rounded-md mb-4">
                 <div className="flex justify-between mb-2">
                   <span>Subtotal:</span>
-                  <span>KES {(parseFloat(currentOrderItem.price) * orderQuantity).toLocaleString()}</span>
+                  <span>
+                    KES {(parseFloat(currentOrderItem.price) * orderQuantity).toLocaleString()}
+                  </span>
                 </div>
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total:</span>
-                  <span>KES {(parseFloat(currentOrderItem.price) * orderQuantity).toLocaleString()}</span>
+                  <span>
+                    KES {(parseFloat(currentOrderItem.price) * orderQuantity).toLocaleString()}
+                  </span>
                 </div>
               </div>
             </div>
           )}
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsOrderDialogOpen(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handlePlaceOrder} 
+            <Button
+              onClick={handlePlaceOrder}
               disabled={orderProcessing || !currentOrderItem}
               className="bg-emerald-600 hover:bg-emerald-700"
             >

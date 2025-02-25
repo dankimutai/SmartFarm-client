@@ -10,6 +10,8 @@ import { HomePage } from './components/home/HomePage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
+import  TrackOrder  from './pages/orders/TrackOrder';
+import  OrderHistory  from './pages/orders/OrderHistory';
 
 // Admin imports
 import AdminDashboard from './pages/dashboard/AdminDashboard';
@@ -39,6 +41,7 @@ import PurchaseHistory from './pages/buyer/PurchaseHistory';
 import BuyerAnalytics from './pages/buyer/BuyerAnalytics';
 import BuyerMessages from './pages/buyer/BuyerMessages';
 import BuyerProfile from './pages/buyer/BuyerProfile';
+import Checkout from './pages/checkout/Checkout'; 
 import FarmerMessages from './pages/farmer/Messages';
 import Marketplace from './components/marketplace/MarketPlace';
 import KnowledgeHub from './pages/blogs/KnowldgeHub';
@@ -72,6 +75,14 @@ const router = createBrowserRouter([
         path: 'knowledge/articles/:id',
         element: <ArticleDetail />,
       },
+      {
+        path: 'track-order',
+        element: <TrackOrder />,
+      },
+      {
+        path: 'orders',
+        element: <OrderHistory />,
+      },
     ],
   },
   {
@@ -90,6 +101,7 @@ const router = createBrowserRouter([
         path: 'forgot-password',
         element: <ForgotPasswordPage />,
       },
+    
     ],
   },
   {
@@ -194,6 +206,10 @@ const router = createBrowserRouter([
           {
             path: 'marketplace/:id',
             element: <ListingDetails />,
+          },
+          {
+            path: 'checkout',
+            element: <Checkout />,
           },
           {
             path: 'orders',

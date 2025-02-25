@@ -101,13 +101,13 @@ export const ordersApi = createApi({
           : [{ type: 'Orders', id: 'LIST' }],
     }),
 
-    getOrderById: builder.query<OrderResponse, number>({
+    getOrderById: builder.query<OrderResponse, string | number>({
       query: (id) => `/orders/${id}`,
       providesTags: (_result, _error, id) => [{ type: 'Orders', id }],
     }),
 
     getBuyerOrders: builder.query<OrdersResponse, number>({
-      query: (buyerId) => `/orders/buyer/${buyerId}`,
+      query: (buyerId) => `/orders/user/${buyerId}`, // Correct endpoint
       providesTags: (result) => 
         result?.data
           ? [
