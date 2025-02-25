@@ -1,4 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../store/store';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import {
   Search,
@@ -7,78 +10,242 @@ import {
   MapPin,
   Clock,
   Phone,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
+import { ordersApi } from '../../store/api/ordersApi';
 
 // Interfaces
-interface TrackingOrder {
-  id: string;
-  product: string;
-  seller: string;
-  trackingNumber: string;
-  status: 'pending' | 'picked_up' | 'in_transit' | 'out_for_delivery' | 'delivered';
-  estimatedDelivery: string;
-  currentLocation: string;
-  deliveryAddress: string;
-  orderDate: string;
-  driver?: {
-    name: string;
-    phone: string;
-    vehicleNumber: string;
+interface LogisticsData {
+  id: number;
+  orderId: number;
+  pickupLocation: string;
+  deliveryLocation: string;
+  status: 'in_progress' | 'in_transit' | 'delivered' | 'cancelled';
+  estimatedDeliveryDate: string;
+  actualDeliveryDate?: string;
+  deliveredAt?: string;
+}
+
+interface Order {
+  id: number;
+  buyerId: number;
+  listingId: number;
+  quantity: string;
+  totalPrice: string;
+  orderStatus: 'pending' | 'confirmed' | 'in_transit' | 'delivered' | 'cancelled';
+  paymentStatus: 'pending' | 'paid' | 'failed';
+  createdAt: string;
+  updatedAt: string;
+  listing: {
+    id: number;
+    product: {
+      name: string;
+      category: string;
+      unit: string;
+      imageUrl: string | null;
+    };
+    farmer: {
+      location: string;
+    };
+    price: number;
   };
+  logistics: LogisticsData | null;
+}
+
+// Enhanced with logistics data
+interface TrackingOrder extends Order {
+  trackingNumber: string; // Generated from order ID
+  currentLocation: string;
   timeline: {
     status: string;
     location: string;
     timestamp: string;
     description: string;
   }[];
+  driver?: {
+    name: string;
+    phone: string;
+    vehicleNumber: string;
+  };
 }
 
-// Mock Data
-const mockTrackingOrders: TrackingOrder[] = [
-  {
-    id: 'ORD-001',
-    product: 'Fresh Tomatoes',
-    seller: 'Green Farms Ltd',
-    trackingNumber: 'TRK123456',
-    status: 'in_transit',
-    estimatedDelivery: '2024-02-18',
-    currentLocation: 'Nakuru',
-    deliveryAddress: '123 Market Street, Nairobi',
-    orderDate: '2024-02-15',
-    driver: {
-      name: 'John Doe',
-      phone: '+254 712 345 678',
-      vehicleNumber: 'KCA 123B'
-    },
-    timeline: [
-      {
-        status: 'Order Placed',
-        location: 'Online',
-        timestamp: '2024-02-15 09:00',
-        description: 'Order confirmed and payment received'
-      },
-      {
-        status: 'Picked Up',
-        location: 'Nakuru Warehouse',
-        timestamp: '2024-02-15 14:30',
-        description: 'Package picked up by delivery partner'
-      },
-      {
-        status: 'In Transit',
-        location: 'Nakuru',
-        timestamp: '2024-02-15 16:45',
-        description: 'Package is on the way to destination'
-      }
-    ]
-  },
-  // Add more mock orders...
-];
-
 const TrackOrders = () => {
+  const navigate = useNavigate();
+  const { user } = useSelector((state: RootState) => state.auth);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedOrder, setSelectedOrder] = useState<TrackingOrder | null>(mockTrackingOrders[0]);
+  const [trackableOrders, setTrackableOrders] = useState<TrackingOrder[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<TrackingOrder | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const getStatusColor = (status: TrackingOrder['status']) => {
+  // Fetch orders data
+  const { 
+    data: ordersResponse, 
+    isLoading: ordersLoading, 
+    error: ordersError
+  } = ordersApi.useGetUserOrdersQuery(user?.id || 0, {
+    skip: !user?.id
+  });
+
+  // Process orders data to create trackable orders
+  useEffect(() => {
+    if (ordersLoading) {
+      setIsLoading(true);
+      return;
+    }
+
+    if (ordersError) {
+      setError('Failed to fetch orders. Please try again.');
+      setIsLoading(false);
+      return;
+    }
+
+    // Extract and process orders with logistics data
+    const orders = Array.isArray(ordersResponse) ? ordersResponse : 
+                  ordersResponse?.data ? ordersResponse.data : [];
+
+    if (!orders || orders.length === 0) {
+      setTrackableOrders([]);
+      setIsLoading(false);
+      return;
+    }
+
+    // Transform orders into TrackingOrder format
+    const trackable = orders
+      .filter(order => ['in_transit', 'delivered'].includes(order.orderStatus))
+      .map(order => {
+        // Generate tracking timeline based on order status
+        const timeline = generateTimeline(order);
+        
+        // Get current location based on logistics or default to farmer location
+        const currentLocation = order.logistics?.pickupLocation || order.listing.farmer.location;
+        
+        // Create tracking number from order ID
+        const trackingNumber = `TRK${order.id}${new Date(order.createdAt).getFullYear()}`;
+
+        // Mock driver data - in a real app, this would come from the backend
+        const driver = order.orderStatus === 'in_transit' ? {
+          name: 'John Kimani',
+          phone: '+254 712 345 678',
+          vehicleNumber: 'KCA 123B'
+        } : undefined;
+
+        return {
+          ...order,
+          trackingNumber,
+          currentLocation,
+          timeline,
+          driver
+        };
+      });
+
+    setTrackableOrders(trackable);
+    
+    // Set first order as selected if available and none is currently selected
+    if (trackable.length > 0 && !selectedOrder) {
+      setSelectedOrder(trackable[0]);
+    } else if (selectedOrder) {
+      // Update selected order if it exists in the new data
+      const updated = trackable.find(order => order.id === selectedOrder.id);
+      if (updated) {
+        setSelectedOrder(updated);
+      } else if (trackable.length > 0) {
+        setSelectedOrder(trackable[0]);
+      } else {
+        setSelectedOrder(null);
+      }
+    }
+
+    setIsLoading(false);
+  }, [ordersResponse, ordersLoading, ordersError, selectedOrder]);
+
+  // Filter orders based on search term
+  const filteredOrders = trackableOrders.filter(order => 
+    order.trackingNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.id.toString().includes(searchTerm) ||
+    order.listing.product.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Generate timeline based on order data
+  function generateTimeline(order: Order) {
+    const timeline = [];
+    
+    // Order placed
+    timeline.push({
+      status: 'Order Placed',
+      location: 'Online',
+      timestamp: formatDateTime(order.createdAt),
+      description: 'Order confirmed and payment received'
+    });
+
+    // Order confirmed
+    if (['confirmed', 'in_transit', 'delivered'].includes(order.orderStatus)) {
+      timeline.push({
+        status: 'Order Confirmed',
+        location: order.listing.farmer.location,
+        timestamp: formatDateTime(order.updatedAt),
+        description: 'Order confirmed by seller'
+      });
+    }
+
+    // Picked up (if logistics data exists)
+    if (order.logistics && ['in_transit', 'delivered'].includes(order.orderStatus)) {
+      timeline.push({
+        status: 'Picked Up',
+        location: order.logistics.pickupLocation,
+        timestamp: formatDateTime(order.updatedAt, 2), // Add 2 hours to mock different time
+        description: 'Package picked up by delivery partner'
+      });
+    }
+
+    // In transit
+    if (order.orderStatus === 'in_transit') {
+      timeline.push({
+        status: 'In Transit',
+        location: order.logistics?.pickupLocation || order.listing.farmer.location,
+        timestamp: formatDateTime(order.updatedAt, 4), // Add 4 hours to mock different time
+        description: 'Package is on the way to destination'
+      });
+    }
+
+    // Delivered
+    if (order.orderStatus === 'delivered') {
+      timeline.push({
+        status: 'Delivered',
+        location: order.logistics?.deliveryLocation || 'Destination',
+        timestamp: formatDateTime(order.updatedAt, 8), // Add 8 hours to mock different time
+        description: 'Package has been delivered successfully'
+      });
+    }
+
+    return timeline;
+  }
+
+  // Helper to format date-time
+  function formatDateTime(dateString: string, hoursToAdd = 0) {
+    const date = new Date(dateString);
+    date.setHours(date.getHours() + hoursToAdd);
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  // Format date for display
+  function formatDate(dateString: string) {
+    if (!dateString) return 'Not available';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  }
+
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'delivered':
         return 'bg-green-100 text-green-800';
@@ -86,7 +253,7 @@ const TrackOrders = () => {
         return 'bg-blue-100 text-blue-800';
       case 'out_for_delivery':
         return 'bg-yellow-100 text-yellow-800';
-      case 'picked_up':
+      case 'in_progress':
         return 'bg-purple-100 text-purple-800';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -99,11 +266,62 @@ const TrackOrders = () => {
     ).join(' ');
   };
 
-  const getProgressPercentage = (status: TrackingOrder['status']) => {
-    const stages = ['pending', 'picked_up', 'in_transit', 'out_for_delivery', 'delivered'];
+  const getProgressPercentage = (status: string) => {
+    const stages = ['pending', 'confirmed', 'in_transit', 'out_for_delivery', 'delivered'];
     const currentIndex = stages.indexOf(status);
     return (currentIndex / (stages.length - 1)) * 100;
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12">
+        <Loader2 className="h-12 w-12 animate-spin text-blue-500 mb-4" />
+        <p className="text-gray-600">Loading tracking information...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12">
+        <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+        <h3 className="text-lg font-medium text-gray-900">Error loading tracking data</h3>
+        <p className="text-gray-500 mt-2">{error}</p>
+        <button 
+          onClick={() => navigate('/buyer/orders')}
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Back to Orders
+        </button>
+      </div>
+    );
+  }
+
+  if (trackableOrders.length === 0) {
+    return (
+      <div className="p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Track Orders</h1>
+          <p className="text-gray-500 mt-1">Monitor your deliveries in real-time</p>
+        </div>
+        
+        <div className="flex flex-col items-center justify-center p-12 bg-white rounded-lg shadow-sm">
+          <Package className="h-16 w-16 text-gray-300 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900">No trackable orders found</h3>
+          <p className="text-gray-500 mt-2 text-center max-w-md">
+            You don't have any orders that are currently in transit or delivered.
+            When you have orders being shipped, you'll be able to track them here.
+          </p>
+          <button 
+            onClick={() => navigate('/buyer/orders')}
+            className="mt-6 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            View All Orders
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -133,32 +351,40 @@ const TrackOrders = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Orders List */}
         <div className="lg:col-span-1 space-y-4">
-          {mockTrackingOrders.map((order) => (
-            <Card 
-              key={order.id}
-              className={`cursor-pointer hover:shadow-md transition-shadow ${
-                selectedOrder?.id === order.id ? 'ring-2 ring-blue-500' : ''
-              }`}
-              onClick={() => setSelectedOrder(order)}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-600">{order.id}</span>
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>
-                    {formatStatus(order.status)}
-                  </span>
-                </div>
-                <h3 className="font-medium">{order.product}</h3>
-                <p className="text-sm text-gray-500">{order.seller}</p>
-                <div className="mt-2 text-sm text-gray-500">
-                  <div className="flex items-center">
-                    <Clock className="h-4 w-4 mr-1" />
-                    Estimated: {order.estimatedDelivery}
+          {filteredOrders.length > 0 ? (
+            filteredOrders.map((order) => (
+              <Card 
+                key={order.id}
+                className={`cursor-pointer hover:shadow-md transition-shadow ${
+                  selectedOrder?.id === order.id ? 'ring-2 ring-blue-500' : ''
+                }`}
+                onClick={() => setSelectedOrder(order)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-600">#{order.id}</span>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.orderStatus)}`}>
+                      {formatStatus(order.orderStatus)}
+                    </span>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <h3 className="font-medium">{order.listing.product.name}</h3>
+                  <p className="text-sm text-gray-500">{order.listing.farmer.location}</p>
+                  <div className="mt-2 text-sm text-gray-500">
+                    <div className="flex items-center">
+                      <Clock className="h-4 w-4 mr-1" />
+                      Estimated: {order.logistics?.estimatedDeliveryDate ? 
+                        formatDate(order.logistics.estimatedDeliveryDate) : 
+                        'Processing'}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <div className="text-center py-8 bg-gray-50 rounded-lg">
+              <p className="text-gray-500">No orders match your search criteria</p>
+            </div>
+          )}
         </div>
 
         {/* Tracking Details */}
@@ -169,13 +395,13 @@ const TrackOrders = () => {
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div>
-                    <CardTitle>Order {selectedOrder.id}</CardTitle>
+                    <CardTitle>Order #{selectedOrder.id}</CardTitle>
                     <p className="text-sm text-gray-500 mt-1">
                       Tracking Number: {selectedOrder.trackingNumber}
                     </p>
                   </div>
-                  <span className={`px-3 py-1 text-sm font-medium rounded-full ${getStatusColor(selectedOrder.status)}`}>
-                    {formatStatus(selectedOrder.status)}
+                  <span className={`px-3 py-1 text-sm font-medium rounded-full ${getStatusColor(selectedOrder.orderStatus)}`}>
+                    {formatStatus(selectedOrder.orderStatus)}
                   </span>
                 </div>
               </CardHeader>
@@ -186,12 +412,12 @@ const TrackOrders = () => {
                     <div className="h-2 bg-gray-200 rounded">
                       <div 
                         className="h-2 bg-blue-600 rounded transition-all duration-500"
-                        style={{ width: `${getProgressPercentage(selectedOrder.status)}%` }}
+                        style={{ width: `${getProgressPercentage(selectedOrder.orderStatus)}%` }}
                       />
                     </div>
                     <div className="flex justify-between mt-2 text-sm">
                       <span>Order Placed</span>
-                      <span>Picked Up</span>
+                      <span>Confirmed</span>
                       <span>In Transit</span>
                       <span>Out for Delivery</span>
                       <span>Delivered</span>
@@ -212,7 +438,11 @@ const TrackOrders = () => {
                         <Clock className="h-5 w-5 text-blue-600 mr-2" />
                         <span className="font-medium">Estimated Delivery</span>
                       </div>
-                      <p className="text-gray-600">{selectedOrder.estimatedDelivery}</p>
+                      <p className="text-gray-600">
+                        {selectedOrder.logistics?.estimatedDeliveryDate ? 
+                          formatDate(selectedOrder.logistics.estimatedDeliveryDate) : 
+                          'Processing'}
+                      </p>
                     </div>
                   </div>
 
