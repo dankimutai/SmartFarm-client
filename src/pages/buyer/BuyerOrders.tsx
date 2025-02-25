@@ -1,5 +1,3 @@
-// src/pages/buyer/BuyerOrders.tsx
-
 import { useState, useMemo } from 'react';
 import { Card, CardContent } from '../../components/ui/card';
 import { useNavigate } from 'react-router-dom';
@@ -154,8 +152,9 @@ const BuyerOrders = () => {
     });
   };
 
+  // Updated function to use the correct path to the tracking page
   const handleTrackOrder = (orderId: number) => {
-    navigate(`/track-order/${orderId}`);
+    navigate(`/buyer/track-order/${orderId}`);
   };
 
   const handleViewDetails = (orderId: number) => {

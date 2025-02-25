@@ -48,6 +48,8 @@ import KnowledgeHub from './pages/blogs/KnowldgeHub';
 import ArticleDetail from './components/knowledge/ArticleDetail';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import ListingDetails from './pages/marketplace/ListingDetails';
+import OrderDetails from './pages/orders/OrderDetails';
+import OrderTracking from './pages/orders/OrderTracking';
 
 const router = createBrowserRouter([
   {
@@ -239,6 +241,15 @@ const router = createBrowserRouter([
             path: 'settings',
             element: <Settings />,
           },
+          {
+            path: 'orders/:orderId',
+            element: <OrderDetails/>
+          },
+          {
+            path: 'track-order/:orderId',
+            element: <OrderTracking/>
+
+          }
         ],
       },
     ],
