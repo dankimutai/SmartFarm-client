@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState} from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { RootState } from '../../store/store';
@@ -16,7 +16,6 @@ import {
   RiEyeLine
 } from 'react-icons/ri';
 import { Button } from '../../components/common/Button';
-
 
 // Define the status badge component
 interface OrderStatusBadgeProps {
@@ -71,17 +70,22 @@ const OrderHistory = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [dateFilter, setDateFilter] = useState<string>('all');
 
-  // Get orders based on user role
+
+  const userId = user?.id || 0;
+  console.log(userId);
+
+  // Get orders based on user ID
   const { 
     data: ordersResponse, 
     isLoading, 
     error,
     refetch 
-  } = ordersApi.useGetBuyerOrdersQuery(user?.buyerId || 0, {
-    skip: !user?.buyerId
+  } = ordersApi.useGetUserOrdersQuery(user?.id || 0, {
+    skip: !user?.id
   });
 
   const orders = ordersResponse?.data || [];
+  console.log(orders);
 
   // Filter orders based on status, search term, and date
   const filteredOrders = orders.filter(order => {
@@ -124,6 +128,8 @@ const OrderHistory = () => {
           const yearAgo = new Date(now);
           yearAgo.setDate(now.getDate() - 365);
           return orderDate >= yearAgo;
+        default:
+          return true;
       }
     }
 
@@ -384,8 +390,6 @@ const OrderHistory = () => {
                 </tbody>
               </table>
             </div>
-            
-            {/* Pagination could be added here if needed */}
           </div>
         )}
       </div>

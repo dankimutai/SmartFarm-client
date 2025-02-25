@@ -82,7 +82,7 @@ const router = createBrowserRouter([
         element: <TrackOrder />,
       },
       {
-        path: 'orders',
+        path: 'order-history',
         element: <OrderHistory />,
       },
     ],

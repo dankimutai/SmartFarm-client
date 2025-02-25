@@ -69,7 +69,6 @@ export const Navbar = () => {
 
   const orderItems = [
     { label: 'Track Order', link: '/track-order' },
-    { label: 'Order History', link: '/orders' },
   ];
 
   const handleLogin = () => {
