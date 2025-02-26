@@ -1,4 +1,3 @@
-// Enhanced Order Details Modal with Payment Status Update
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -6,11 +5,13 @@ import {
   ShoppingBag, Eye, Clock, Truck, CheckCircle, XCircle, 
   Download, X, Search, Calendar, CreditCard, User, Package, 
   ArrowRight, Phone, MessageSquare, RefreshCw, Send, 
-  DollarSign, AlertCircle, Loader2
+  DollarSign, AlertCircle, Loader2, FileSpreadsheet
 } from 'lucide-react';
 import { ordersApi } from '../../store/api/ordersApi';
 import { RootState } from '../../store/store';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 // Updated interface to match the backend structure
 interface Farmer {
@@ -93,6 +94,7 @@ const OrdersManagement = () => {
     message: string;
     type: 'success' | 'error' | null;
   }>({ message: '', type: null });
+  const [isExporting, setIsExporting] = useState(false);
 
   // Get order statistics
   const getOrderStats = () => {
@@ -115,13 +117,15 @@ const OrdersManagement = () => {
 
   // Filter orders based on search term and status
   const filteredOrders = orders?.filter((order: Order) => {
-    const buyerInfo = order.buyer.companyName || '';
-    const buyerType = order.buyer.businessType || '';
+    const buyerInfo = order.buyer?.companyName || '';
+    const buyerType = order.buyer?.businessType || '';
+    const productName = order.listing?.product?.name || '';
     
     const matchesSearch = 
       order.id.toString().includes(searchTerm.toLowerCase()) ||
       buyerInfo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      buyerType.toLowerCase().includes(searchTerm.toLowerCase());
+      buyerType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      productName.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = filterStatus === 'all' || order.orderStatus === filterStatus;
     
@@ -231,8 +235,243 @@ const OrdersManagement = () => {
     setUpdateFeedback({ message: '', type: null });
   };
 
+  // Function to format date for Excel export
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch (error) {
+      return 'Invalid date';
+    }
+  };
+
+  // Function to export all orders to Excel
+  const exportAllOrdersToExcel = () => {
+    setIsExporting(true);
+    
+    try {
+      // Transform orders data for export
+      const exportData = orders.map((order: Order) => ({
+        'Order ID': order.id,
+        'Date': formatDate(order.createdAt),
+        'Customer': order.buyer?.companyName || 'Individual',
+        'Customer Type': order.buyer?.businessType || 'N/A',
+        'Product': order.listing?.product?.name || 'N/A',
+        'Category': order.listing?.product?.category || 'N/A',
+        'Quantity': order.quantity,
+        'Unit': order.listing?.product?.unit || 'N/A',
+        'Price (KES)': parseFloat(order.totalPrice).toLocaleString(),
+        'Status': order.orderStatus.replace('_', ' '),
+        'Payment Status': order.paymentStatus,
+      }));
+
+      // Create a worksheet
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      
+      // Create column widths
+      const columnWidths = [
+        { wch: 10 },  // Order ID
+        { wch: 12 },  // Date
+        { wch: 20 },  // Customer
+        { wch: 15 },  // Customer Type
+        { wch: 20 },  // Product
+        { wch: 15 },  // Category
+        { wch: 10 },  // Quantity
+        { wch: 10 },  // Unit
+        { wch: 15 },  // Price
+        { wch: 15 },  // Status
+        { wch: 15 },  // Payment Status
+      ];
+      
+      worksheet['!cols'] = columnWidths;
+      
+      // Create a workbook
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Orders');
+      
+      // Generate Excel file
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      
+      // Save file
+      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const fileName = `SmartFarm_Orders_${new Date().toISOString().split('T')[0]}.xlsx`;
+      saveAs(blob, fileName);
+      
+      // Show success message
+      setUpdateFeedback({
+        message: 'Orders exported successfully!',
+        type: 'success'
+      });
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setUpdateFeedback({ message: '', type: null });
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Error exporting orders:', error);
+      setUpdateFeedback({
+        message: 'Failed to export orders. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Function to export filtered orders to Excel
+  const exportFilteredOrdersToExcel = () => {
+    setIsExporting(true);
+    
+    try {
+      // Transform filtered orders data for export
+      const exportData = filteredOrders.map((order: Order) => ({
+        'Order ID': order.id,
+        'Date': formatDate(order.createdAt),
+        'Customer': order.buyer?.companyName || 'Individual',
+        'Customer Type': order.buyer?.businessType || 'N/A',
+        'Product': order.listing?.product?.name || 'N/A',
+        'Category': order.listing?.product?.category || 'N/A',
+        'Quantity': order.quantity,
+        'Unit': order.listing?.product?.unit || 'N/A',
+        'Price (KES)': parseFloat(order.totalPrice).toLocaleString(),
+        'Status': order.orderStatus.replace('_', ' '),
+        'Payment Status': order.paymentStatus,
+      }));
+
+      // Create a worksheet
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      
+      // Create column widths
+      const columnWidths = [
+        { wch: 10 },  // Order ID
+        { wch: 12 },  // Date
+        { wch: 20 },  // Customer
+        { wch: 15 },  // Customer Type
+        { wch: 20 },  // Product
+        { wch: 15 },  // Category
+        { wch: 10 },  // Quantity
+        { wch: 10 },  // Unit
+        { wch: 15 },  // Price
+        { wch: 15 },  // Status
+        { wch: 15 },  // Payment Status
+      ];
+      
+      worksheet['!cols'] = columnWidths;
+      
+      // Create a workbook
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Filtered Orders');
+      
+      // Generate Excel file
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      
+      // Save file
+      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const fileName = `SmartFarm_Filtered_Orders_${new Date().toISOString().split('T')[0]}.xlsx`;
+      saveAs(blob, fileName);
+      
+      // Show success message
+      setUpdateFeedback({
+        message: 'Filtered orders exported successfully!',
+        type: 'success'
+      });
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setUpdateFeedback({ message: '', type: null });
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Error exporting filtered orders:', error);
+      setUpdateFeedback({
+        message: 'Failed to export orders. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Function to export a single order to Excel
+  const exportSingleOrderToExcel = (order: Order) => {
+    setIsExporting(true);
+    
+    try {
+      // Create detailed order data for export
+      const exportData = [{
+        'Order ID': order.id,
+        'Order Date': formatDate(order.createdAt),
+        'Customer': order.buyer?.companyName || 'Individual',
+        'Customer Type': order.buyer?.businessType || 'N/A',
+        'Product': order.listing?.product?.name || 'N/A',
+        'Category': order.listing?.product?.category || 'N/A',
+        'Quantity': order.quantity,
+        'Unit': order.listing?.product?.unit || 'N/A',
+        'Unit Price (KES)': parseFloat(order.listing?.price?.toString() || '0').toLocaleString(),
+        'Total Price (KES)': parseFloat(order.totalPrice).toLocaleString(),
+        'Order Status': order.orderStatus.replace('_', ' '),
+        'Payment Status': order.paymentStatus,
+      }];
+
+      // Create a worksheet
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      
+      // Create column widths
+      const columnWidths = [
+        { wch: 10 },  // Order ID
+        { wch: 12 },  // Date
+        { wch: 20 },  // Customer
+        { wch: 15 },  // Customer Type
+        { wch: 20 },  // Product
+        { wch: 15 },  // Category
+        { wch: 10 },  // Quantity
+        { wch: 10 },  // Unit
+        { wch: 15 },  // Unit Price
+        { wch: 15 },  // Total Price
+        { wch: 15 },  // Status
+        { wch: 15 },  // Payment Status
+      ];
+      
+      worksheet['!cols'] = columnWidths;
+      
+      // Create a workbook
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, `Order_${order.id}`);
+      
+      // Generate Excel file
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      
+      // Save file
+      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const fileName = `SmartFarm_Order_${order.id}.xlsx`;
+      saveAs(blob, fileName);
+      
+      // Show success message
+      setUpdateFeedback({
+        message: 'Order exported successfully!',
+        type: 'success'
+      });
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setUpdateFeedback({ message: '', type: null });
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Error exporting order:', error);
+      setUpdateFeedback({
+        message: 'Failed to export order. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (isLoading) return <LoadingSpinner />;
-  if (error) return <div>Error loading orders</div>;
+  if (error && (error as any)?.data?.message !== 'No orders found for this farmer') {
+    return <div>Error loading orders: {(error as any)?.data?.message || 'Something went wrong'}</div>;
+  }
 
   // Add this keyframe animation to your global CSS or component styles
   const keyframeStyles = `
@@ -256,10 +495,40 @@ const OrdersManagement = () => {
           <p className="text-gray-500 mt-1">View and manage your customer orders</p>
         </div>
         <div className="mt-4 md:mt-0">
-          <button className="flex items-center px-4 py-2 border rounded-lg hover:bg-gray-50">
-            <Download className="w-4 h-4 mr-2" />
-            Export Orders
-          </button>
+          {/* Export button with dropdown */}
+          <div className="relative group">
+            <button 
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              onClick={exportAllOrdersToExcel}
+              disabled={isExporting || orders.length === 0}
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  Export All Orders
+                </>
+              )}
+            </button>
+            
+            {/* Success/Error message for export */}
+            {updateFeedback.type && updateFeedback.message && (
+              <div className={`absolute top-full right-0 mt-2 px-4 py-2 rounded-md shadow-lg z-10 animate-fadeIn ${
+                updateFeedback.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+              }`}>
+                {updateFeedback.type === 'success' ? (
+                  <CheckCircle className="w-4 h-4 inline mr-1" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 inline mr-1" />
+                )}
+                {updateFeedback.message}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -358,6 +627,22 @@ const OrdersManagement = () => {
                 <option value="delivered">Delivered</option>
                 <option value="cancelled">Cancelled</option>
               </select>
+              
+              {/* Export filtered results button */}
+              {filteredOrders.length > 0 && (searchTerm || filterStatus !== 'all') && (
+                <button 
+                  className="flex items-center px-4 py-2 bg-gray-100 text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors whitespace-nowrap"
+                  onClick={exportFilteredOrdersToExcel}
+                  disabled={isExporting}
+                >
+                  {isExporting ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4 mr-2" />
+                  )}
+                  Export Results
+                </button>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -383,18 +668,18 @@ const OrdersManagement = () => {
                     <td className="px-4 py-4">
                       <div className="flex items-center">
                         <div>
-                          <div className="font-medium">{order.buyer.companyName || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">{order.buyer.businessType || 'N/A'}</div>
+                          <div className="font-medium">{order.buyer?.companyName || 'N/A'}</div>
+                          <div className="text-sm text-gray-500">{order.buyer?.businessType || 'N/A'}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-4">
                       <div className="text-sm">
-                        {order.quantity}x {order.listing.product.name}
+                        {order.quantity}x {order.listing?.product?.name || 'N/A'}
                       </div>
                     </td>
                     <td className="px-4 py-4 font-medium">
-                      KES {parseFloat(order.totalPrice).toLocaleString()}
+                      KES {parseFloat(order.totalPrice || '0').toLocaleString()}
                     </td>
                     <td className="px-4 py-4">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.orderStatus)}`}>
@@ -408,15 +693,28 @@ const OrdersManagement = () => {
                       </span>
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-500">
-                      {new Date(order.createdAt).toLocaleDateString()}
+                      {formatDate(order.createdAt)}
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center space-x-3">
                         <button 
                           onClick={() => handleViewOrder(order)}
                           className="text-blue-600 hover:text-blue-800"
+                          title="View order details"
                         >
                           <Eye className="h-4 w-4" />
+                        </button>
+                        <button 
+                          onClick={() => exportSingleOrderToExcel(order)}
+                          className="text-green-600 hover:text-green-800"
+                          disabled={isExporting}
+                          title="Export to Excel"
+                        >
+                          {isExporting ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Download className="h-4 w-4" />
+                          )}
                         </button>
                       </div>
                     </td>
@@ -593,8 +891,8 @@ const OrdersManagement = () => {
                       </h3>
                       <div className="space-y-3">
                         <div>
-                          <p className="font-medium">{selectedOrderDetails.buyer.companyName || 'Individual Buyer'}</p>
-                          <p className="text-sm text-gray-500">{selectedOrderDetails.buyer.businessType || 'N/A'}</p>
+                          <p className="font-medium">{selectedOrderDetails.buyer?.companyName || 'Individual Buyer'}</p>
+                          <p className="text-sm text-gray-500">{selectedOrderDetails.buyer?.businessType || 'N/A'}</p>
                         </div>
                         <div className="pt-2 flex gap-2">
                           <button className="text-xs flex items-center text-emerald-600 hover:text-emerald-800 transition-colors">
@@ -619,7 +917,7 @@ const OrdersManagement = () => {
                         Product Information
                       </h3>
                       <div className="flex items-center space-x-4 py-2">
-                        {selectedOrderDetails.listing.product.imageUrl ? (
+                        {selectedOrderDetails.listing?.product?.imageUrl ? (
                           <img 
                             src={selectedOrderDetails.listing.product.imageUrl} 
                             alt={selectedOrderDetails.listing.product.name}
@@ -631,18 +929,18 @@ const OrdersManagement = () => {
                           </div>
                         )}
                         <div className="flex-1">
-                          <p className="font-medium">{selectedOrderDetails.listing.product.name}</p>
+                          <p className="font-medium">{selectedOrderDetails.listing?.product?.name || 'N/A'}</p>
                           <p className="text-sm text-gray-500">
-                            {selectedOrderDetails.quantity} {selectedOrderDetails.listing.product.unit}
+                            {selectedOrderDetails.quantity} {selectedOrderDetails.listing?.product?.unit || 'units'}
                           </p>
                           <p className="text-xs text-gray-500 mt-1">
-                            Category: {selectedOrderDetails.listing.product.category}
+                            Category: {selectedOrderDetails.listing?.product?.category || 'N/A'}
                           </p>
                         </div>
                         <div className="text-right">
                           <p className="text-xs text-gray-500">Unit Price</p>
                           <p className="font-medium">
-                            KES {parseFloat(selectedOrderDetails.listing.price.toString()).toLocaleString()}
+                            KES {parseFloat(selectedOrderDetails.listing?.price?.toString() || '0').toLocaleString()}
                           </p>
                         </div>
                       </div>
@@ -847,9 +1145,17 @@ const OrdersManagement = () => {
                 
                 {selectedOrderDetails.orderStatus !== 'delivered' && selectedOrderDetails.orderStatus !== 'cancelled' && (
                   <div className="flex gap-2">
-                    <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 flex items-center">
-                      <Download className="w-4 h-4 mr-2" />
-                      Export
+                    <button 
+                      onClick={() => exportSingleOrderToExcel(selectedOrderDetails)}
+                      disabled={isExporting}
+                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 flex items-center"
+                    >
+                      {isExporting ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <FileSpreadsheet className="w-4 h-4 mr-2" />
+                      )}
+                      Export to Excel
                     </button>
                     <button className="px-4 py-2 border border-emerald-600 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 flex items-center">
                       <Send className="w-4 h-4 mr-2" />
