@@ -95,7 +95,6 @@ interface Order {
   };
 }
 
-
 // Interface for order status counts
 interface OrderStatusCounts {
   pending: number;
@@ -111,8 +110,8 @@ const FarmerDashboard = () => {
   const [filterCategory, setFilterCategory] = useState('all');
 
   const user = useSelector((state: RootState) => state.auth.user);
-  const userId = user?.id;
-  const farmerId = user?.farmerId;
+  const userId = user?.id ?? 0;
+  const farmerId = user?.farmerId ?? 0;
 
   // State to hold derived statistics
   const [stats, setStats] = useState({
@@ -143,8 +142,7 @@ const FarmerDashboard = () => {
   const {
     data: ordersResponse,
     isLoading: ordersLoading,
-    error: ordersError,
-  } = ordersApi.useGetFarmerOrdersQuery(userId ?? 0, {
+  } = ordersApi.useGetFarmerOrdersQuery(userId, {
     skip: !userId,
   });
 
@@ -152,23 +150,119 @@ const FarmerDashboard = () => {
   const {
     data: listingsResponse,
     isLoading: listingsLoading,
-    error: listingsError,
-  } = productsApi.useGetFarmerListingsQuery(farmerId!, {
+  } = productsApi.useGetFarmerListingsQuery(farmerId, {
     skip: !farmerId,
   });
 
+  // Function to process orders data by month for revenue chart
+  const processOrdersDataByMonth = (orders: Order[] = []): RevenueChartData[] => {
+    const monthData: MonthDataRevenue = {};
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+
+    // Initialize all months with zero
+    months.forEach((month) => {
+      monthData[month] = { month, revenue: 0 };
+    });
+
+    // Process orders
+    orders.forEach((order: Order) => {
+      try {
+        const date = new Date(order.createdAt);
+        const month = months[date.getMonth()];
+
+        // Only include orders that aren't cancelled
+        if (order.orderStatus !== 'cancelled') {
+          monthData[month].revenue += parseFloat(order.totalPrice || '0');
+        }
+      } catch (error) {
+        console.error('Error processing order:', error);
+      }
+    });
+
+    // Convert to array and return only the last 6 months
+    const currentMonth = new Date().getMonth();
+    return months
+      .slice(currentMonth - 5 >= 0 ? currentMonth - 5 : currentMonth + 7)
+      .slice(0, 6)
+      .map((month) => monthData[month]);
+  };
+
+  // Function to process orders data by month for orders chart
+  const processOrdersCountByMonth = (orders: Order[] = []): OrdersChartData[] => {
+    const monthData: MonthDataOrders = {};
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+
+    // Initialize all months with zero
+    months.forEach((month) => {
+      monthData[month] = { month, orders: 0 };
+    });
+
+    // Process orders
+    orders.forEach((order: Order) => {
+      try {
+        const date = new Date(order.createdAt);
+        const month = months[date.getMonth()];
+
+        // Count orders
+        monthData[month].orders += 1;
+      } catch (error) {
+        console.error('Error processing order count:', error);
+      }
+    });
+
+    // Convert to array and return only the last 6 months
+    const currentMonth = new Date().getMonth();
+    return months
+      .slice(currentMonth - 5 >= 0 ? currentMonth - 5 : currentMonth + 7)
+      .slice(0, 6)
+      .map((month) => monthData[month]);
+  };
+
+  // Initialize empty chart data if needed
+  useEffect(() => {
+    if (revenueChartData.length === 0) {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+      setRevenueChartData(months.map(month => ({ month, revenue: 0 })));
+      setOrdersChartData(months.map(month => ({ month, orders: 0 })));
+    }
+  }, [revenueChartData.length]);
+
   // Process and transform data when API responses change
   useEffect(() => {
-    if (ordersResponse?.data && listingsResponse?.data) {
-      // Get orders data
-      const orders = ordersResponse.data;
+    try {
+      // Get orders and listings data safely
+      const orders = ordersResponse?.data || [];
+      const listings = listingsResponse?.data || [];
 
-      // Get listings data
-      const listings = listingsResponse.data;
-
-      // Calculate total revenue
+      // Calculate total revenue safely
       const totalRevenue = orders.reduce((total, order) => {
-        return total + parseFloat(order.totalPrice);
+        return total + (parseFloat(order.totalPrice || '0') || 0);
       }, 0);
 
       // Count active orders (pending, confirmed, in_transit)
@@ -179,9 +273,14 @@ const FarmerDashboard = () => {
       // Count products listed (active listings)
       const productsListed = listings.filter((listing) => listing.status === 'active').length;
 
-      // Count unique categories
-      const categories = new Set(listings.map((listing) => listing.product.category));
-      const activeCategories = categories.size;
+      // Count unique categories safely
+      const categoriesSet = new Set<string>();
+      listings.forEach(listing => {
+        if (listing.product?.category) {
+          categoriesSet.add(listing.product.category);
+        }
+      });
+      const activeCategories = categoriesSet.size;
 
       // Get revenue by month for chart
       const revenueByMonth = processOrdersDataByMonth(orders);
@@ -217,135 +316,66 @@ const FarmerDashboard = () => {
       // Set chart data
       setRevenueChartData(revenueByMonth);
       setOrdersChartData(ordersByMonth);
+    } catch (error) {
+      console.error('Error processing dashboard data:', error);
     }
   }, [ordersResponse, listingsResponse]);
 
-  // Function to process orders data by month for revenue chart
-  const processOrdersDataByMonth = (orders: Order[]): RevenueChartData[] => {
-    const monthData: MonthDataRevenue = {};
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-
-    // Initialize all months with zero
-    months.forEach((month) => {
-      monthData[month] = { month, revenue: 0 };
-    });
-
-    // Process orders
-    orders.forEach((order: Order) => {
-      const date = new Date(order.createdAt);
-      const month = months[date.getMonth()];
-
-      // Only include orders that aren't cancelled
-      if (order.orderStatus !== 'cancelled') {
-        monthData[month].revenue += parseFloat(order.totalPrice);
-      }
-    });
-
-    // Convert to array and return only the last 6 months
-    const currentMonth = new Date().getMonth();
-    return months
-      .slice(currentMonth - 5 >= 0 ? currentMonth - 5 : currentMonth + 7)
-      .slice(0, 6)
-      .map((month) => monthData[month]);
-  };
-
-  // Function to process orders data by month for orders chart
-  const processOrdersCountByMonth = (orders: Order[]): OrdersChartData[] => {
-    const monthData: MonthDataOrders = {};
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-
-    // Initialize all months with zero
-    months.forEach((month) => {
-      monthData[month] = { month, orders: 0 };
-    });
-
-    // Process orders
-    orders.forEach((order: Order) => {
-      const date = new Date(order.createdAt);
-      const month = months[date.getMonth()];
-
-      // Count orders
-      monthData[month].orders += 1;
-    });
-
-    // Convert to array and return only the last 6 months
-    const currentMonth = new Date().getMonth();
-    return months
-      .slice(currentMonth - 5 >= 0 ? currentMonth - 5 : currentMonth + 7)
-      .slice(0, 6)
-      .map((month) => monthData[month]);
-  };
-
-  // Show loading spinner while data is being fetched (using the same pattern as ProductManagement)
+  // Show loading spinner while data is being fetched
   if (ordersLoading || listingsLoading) {
     return <LoadingSpinner />;
   }
 
-  // Show error message if there's an error (using the same pattern as ProductManagement)
-  if (ordersError || listingsError) {
-    return (
-      <div className="p-4 bg-red-50 text-red-600 rounded-lg">
-        Error loading dashboard data:{' '}
-        {((ordersError || listingsError) as any)?.data?.message || 'Something went wrong'}
-      </div>
-    );
-  }
-
-  // Get orders and listings data
+  // Get orders and listings data - ensure they are arrays even if API returns null/undefined
   const orders = ordersResponse?.data || [];
   const listings = listingsResponse?.data || [];
 
   // Sort orders by date (most recent first)
   const recentOrders = [...orders]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .sort((a, b) => {
+      try {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      } catch {
+        return 0;
+      }
+    })
     .slice(0, 5); // Get only the 5 most recent orders
 
-  // Get unique categories from listings (using the same pattern as ProductManagement)
-  const categories = Array.from(new Set(listings.map((listing) => listing.product.category)));
+  // Get unique categories from listings - with null safety
+  const categoriesSet = new Set<string>();
+  listings.forEach(listing => {
+    if (listing.product?.category) {
+      categoriesSet.add(listing.product.category);
+    }
+  });
+  const categories = Array.from(categoriesSet);
 
-  // Filter listings based on search and category (using the same pattern as ProductManagement)
+  // Filter listings based on search and category - with null safety
   const filteredListings = listings.filter((listing) => {
+    const productName = listing.product?.name || '';
+    const productCategory = listing.product?.category || '';
+    
     const matchesSearch =
       searchTerm === '' ||
-      listing.product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      listing.product.category.toLowerCase().includes(searchTerm.toLowerCase());
+      productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      productCategory.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesCategory =
       filterCategory === 'all' ||
-      listing.product.category.toLowerCase() === filterCategory.toLowerCase();
+      productCategory.toLowerCase() === filterCategory.toLowerCase();
 
     return matchesSearch && matchesCategory;
   });
 
   // Get only the 3 most recent listings
   const recentListings = [...filteredListings]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .sort((a, b) => {
+      try {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      } catch {
+        return 0;
+      }
+    })
     .slice(0, 3);
 
   return (
@@ -511,23 +541,29 @@ const FarmerDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={revenueChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip
-                    formatter={(value: number) => [`KES ${value.toLocaleString()}`, 'Revenue']}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#10b981"
-                    strokeWidth={2}
-                    name="Revenue"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {revenueChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={revenueChartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip
+                      formatter={(value: number) => [`KES ${value.toLocaleString()}`, 'Revenue']}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      name="Revenue"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-gray-500">No revenue data available</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -539,15 +575,21 @@ const FarmerDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={ordersChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="orders" fill="#6366f1" name="Orders" />
-                </BarChart>
-              </ResponsiveContainer>
+              {ordersChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={ordersChartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="orders" fill="#6366f1" name="Orders" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-gray-500">No orders data available</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -584,22 +626,22 @@ const FarmerDashboard = () => {
                         <div className="flex items-center">
                           <div>
                             <div className="font-medium">
-                              {order.buyer.companyName || 'Individual'}
+                              {order.buyer?.companyName || 'Individual'}
                             </div>
                             <div className="text-sm text-gray-500">
-                              {order.buyer.businessType || 'N/A'}
+                              {order.buyer?.businessType || 'N/A'}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-500">
-                        {order.listing.product.name}
+                        {order.listing?.product?.name || 'N/A'}
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-500">
-                        {order.quantity} {order.listing.product.unit}
+                        {order.quantity} {order.listing?.product?.unit || 'units'}
                       </td>
                       <td className="px-4 py-4 font-medium">
-                        KES {parseFloat(order.totalPrice).toLocaleString()}
+                        KES {parseFloat(order.totalPrice || '0').toLocaleString()}
                       </td>
                       <td className="px-4 py-4">
                         <span
@@ -698,24 +740,24 @@ const FarmerDashboard = () => {
                       <td className="px-4 py-4">
                         <div className="flex items-center">
                           <img
-                            src={listing.product.imageUrl || '/api/placeholder/64/64'}
-                            alt={listing.product.name}
+                            src={listing.product?.imageUrl || '/api/placeholder/64/64'}
+                            alt={listing.product?.name || 'Product'}
                             className="h-10 w-10 rounded-lg object-cover"
                           />
                           <div className="ml-4">
-                            <div className="font-medium text-gray-900">{listing.product.name}</div>
-                            <div className="text-sm text-gray-500">{listing.product.unit}</div>
+                            <div className="font-medium text-gray-900">{listing.product?.name || 'Unnamed product'}</div>
+                            <div className="text-sm text-gray-500">{listing.product?.unit || 'N/A'}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-4">
                         <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                          {listing.product.category}
+                          {listing.product?.category || 'Uncategorized'}
                         </span>
                       </td>
-                      <td className="px-4 py-4 font-medium">{listing.price.toLocaleString()}</td>
+                      <td className="px-4 py-4 font-medium">{(listing.price || 0).toLocaleString()}</td>
                       <td className="px-4 py-4">
-                        {listing.quantity} {listing.product.unit}
+                        {listing.quantity} {listing.product?.unit || 'units'}
                       </td>
                       <td className="px-4 py-4">
                         <span
@@ -727,11 +769,11 @@ const FarmerDashboard = () => {
                                 : 'bg-red-100 text-red-800'
                           }`}
                         >
-                          {listing.status.charAt(0).toUpperCase() + listing.status.slice(1)}
+                          {listing.status?.charAt(0).toUpperCase() + (listing.status?.slice(1) || '')}
                         </span>
                       </td>
                       <td className="px-4 py-4 text-gray-500">
-                        {new Date(listing.availableDate).toLocaleDateString()}
+                        {listing.availableDate ? new Date(listing.availableDate).toLocaleDateString() : 'N/A'}
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center space-x-3 relative">
@@ -754,6 +796,16 @@ const FarmerDashboard = () => {
                   ? "Try adjusting your search or filter to find what you're looking for."
                   : 'Add products to see them here.'}
               </p>
+              
+              {/* Add a button to create a new listing when there are no listings */}
+              <div className="mt-4">
+                <button 
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                  onClick={() => window.location.href = '/marketplace/create-listing'}
+                >
+                  Add Your First Product
+                </button>
+              </div>
             </div>
           )}
         </CardContent>
