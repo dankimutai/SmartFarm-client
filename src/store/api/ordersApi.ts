@@ -105,12 +105,16 @@ export const ordersApi = createApi({
   }),
   tagTypes: ['Orders'],
   endpoints: (builder) => ({
-    getOrders: builder.query<OrdersResponse, void>({
+    getOrders: builder.query<Order[], void>({
       query: () => '/orders',
+      // Transform the response to match the expected type
+      transformResponse: (response: Order[]) => {
+        return response; // Since the response is already an array of orders
+      },
       providesTags: (result) => 
-        result?.data
+        result
           ? [
-              ...result.data.map((order) => ({ type: 'Orders' as const, id: order.id })),
+              ...result.map((order) => ({ type: 'Orders' as const, id: order.id })),
               { type: 'Orders', id: 'LIST' },
             ]
           : [{ type: 'Orders', id: 'LIST' }],
