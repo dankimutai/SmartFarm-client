@@ -205,12 +205,10 @@ const Profile = () => {
           <CardContent className="p-6">
             <div className="flex flex-col items-center">
               <div className="relative">
-                <img
-                  src="/api/placeholder/150/150" // Placeholder since we don't have an avatar in the API response
-                  alt={farmerData.name}
-                  className="w-32 h-32 rounded-full object-cover"
-                />
-                {/* Note: Image upload functionality is omitted since it's not in your API */}
+                {/* Using human avatar icon instead of placeholder image */}
+                <div className="w-32 h-32 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                  <User className="w-16 h-16" />
+                </div>
               </div>
               <h2 className="mt-4 text-xl font-semibold">{farmerData.name}</h2>
               <p className="text-gray-500">{farmerData.primaryCrops || 'Farmer'}</p>

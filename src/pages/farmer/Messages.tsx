@@ -12,6 +12,7 @@ import {
   CheckCheck,
   Package,
   Calendar,
+  User,
 } from 'lucide-react';
 
 // Interfaces
@@ -20,7 +21,7 @@ interface Contact {
   name: string;
   type: 'buyer' | 'support';
   businessType: string;
-  avatar: string;
+  avatar?: string;
   status: 'online' | 'offline' | 'away';
   lastMessage: string;
   timestamp: string;
@@ -56,7 +57,6 @@ const mockContacts: Contact[] = [
     name: 'John Buyer',
     type: 'buyer',
     businessType: 'Wholesale Market',
-    avatar: '/api/placeholder/32/32',
     status: 'online',
     lastMessage: "What's your current stock of tomatoes?",
     timestamp: '10:30 AM',
@@ -69,7 +69,6 @@ const mockContacts: Contact[] = [
     name: "Sarah's Fresh Market",
     type: 'buyer',
     businessType: 'Retail Store',
-    avatar: '/api/placeholder/32/32',
     status: 'offline',
     lastMessage: 'Can you deliver by tomorrow morning?',
     timestamp: 'Yesterday',
@@ -82,7 +81,6 @@ const mockContacts: Contact[] = [
     name: 'Support Team',
     type: 'support',
     businessType: 'SmartFarm Support',
-    avatar: '/api/placeholder/32/32',
     status: 'online',
     lastMessage: 'Need help with your deliveries?',
     timestamp: '2 days ago',
@@ -152,6 +150,43 @@ const FarmerMessages = () => {
     }
   };
 
+  // Function to render avatar (either image or human icon)
+  const renderAvatar = (contact: Contact, size: 'xs' | 'sm' | 'md' = 'md') => {
+    let sizeClasses;
+    let iconSize;
+    
+    switch (size) {
+      case 'xs':
+        sizeClasses = 'w-6 h-6';
+        iconSize = 'w-3 h-3';
+        break;
+      case 'sm':
+        sizeClasses = 'w-8 h-8';
+        iconSize = 'w-4 h-4';
+        break;
+      default:
+        sizeClasses = 'w-10 h-10';
+        iconSize = 'w-5 h-5';
+    }
+    
+    if (contact.avatar) {
+      return (
+        <img src={contact.avatar} alt={contact.name} className={`${sizeClasses} rounded-full object-cover`} />
+      );
+    }
+    
+    // Return human avatar icon with appropriate color based on contact type
+    const bgColor = contact.type === 'support' 
+      ? 'bg-blue-100 text-blue-600' 
+      : 'bg-emerald-100 text-emerald-600';
+      
+    return (
+      <div className={`${sizeClasses} rounded-full ${bgColor} flex items-center justify-center`}>
+        <User className={iconSize} />
+      </div>
+    );
+  };
+
   return (
     <div className="h-[calc(100vh-5rem)] flex">
       {/* Contacts Sidebar */}
@@ -200,7 +235,7 @@ const FarmerMessages = () => {
             >
               <div className="flex items-start space-x-3">
                 <div className="relative">
-                  <img src={contact.avatar} alt={contact.name} className="w-10 h-10 rounded-full" />
+                  {renderAvatar(contact)}
                   <span
                     className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${getStatusColor(
                       contact.status
@@ -241,11 +276,7 @@ const FarmerMessages = () => {
           <div className="p-4 bg-white border-b">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <img
-                  src={selectedContact.avatar}
-                  alt={selectedContact.name}
-                  className="w-10 h-10 rounded-full"
-                />
+                {renderAvatar(selectedContact)}
                 <div>
                   <h3 className="font-medium">{selectedContact.name}</h3>
                   <div className="flex items-center text-sm text-gray-500">
@@ -412,9 +443,13 @@ const FarmerMessages = () => {
           <div className="p-4">
             <div className="space-y-4">
               <div>
-                <p className="text-sm text-gray-500">Buyer</p>
-                <p className="font-medium">{selectedContact.name}</p>
-                <p className="text-sm text-gray-500">{selectedContact.businessType}</p>
+                <div className="flex items-center mb-2">
+                  {renderAvatar(selectedContact, 'xs')}
+                  <div className="ml-2">
+                    <p className="font-medium text-sm">{selectedContact.name}</p>
+                    <p className="text-xs text-gray-500">{selectedContact.businessType}</p>
+                  </div>
+                </div>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Order Status</p>

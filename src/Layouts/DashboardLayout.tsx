@@ -1,4 +1,3 @@
-// src/layouts/DashboardLayout.tsx
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -11,7 +10,11 @@ import {
   Menu,
   X,
   ArrowLeft,
+  User,
 } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store/store';
+import { RiPlantLine } from 'react-icons/ri';
 
 interface NavItem {
   name: string;
@@ -31,6 +34,10 @@ export const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // Get user from Redux store
+  const user = useSelector((state: RootState) => state.auth.user);
+  const profileImage = user?.image;
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -54,7 +61,7 @@ export const DashboardLayout = () => {
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-4 border-b">
             <Link to="/admin/dashboard" className="flex items-center">
-              <img src="/api/placeholder/32/32" alt="Logo" className="h-8 w-8 mr-2" />
+              <RiPlantLine className="w-8 h-8 text-emerald-600" />
               <span className="text-xl font-semibold">SmartFarm</span>
             </Link>
             <button onClick={toggleSidebar} className="md:hidden p-2 rounded-md hover:bg-gray-100">
@@ -116,9 +123,15 @@ export const DashboardLayout = () => {
           </button>
 
           <div className="ml-auto flex items-center space-x-4">
-            <button className="p-2 rounded-full hover:bg-gray-100">
-              <img src="/api/placeholder/32/32" alt="Profile" className="h-8 w-8 rounded-full" />
-            </button>
+            <Link to="/admin/settings" className="p-2 rounded-full hover:bg-gray-100">
+              {profileImage ? (
+                <img src={profileImage} alt="Profile" className="h-8 w-8 rounded-full object-cover" />
+              ) : (
+                <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700">
+                  <User className="w-5 h-5" />
+                </div>
+              )}
+            </Link>
           </div>
         </header>
 
