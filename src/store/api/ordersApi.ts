@@ -175,8 +175,8 @@ export const ordersApi = createApi({
 
     cancelOrder: builder.mutation<OrderResponse, number>({
       query: (id) => ({
-        url: `/orders/${id}/cancel`,
-        method: 'PATCH',
+        url: `/orders/${id}`,
+        method: 'DELETE',  
       }),
       invalidatesTags: (_result, _error, id) => [
         { type: 'Orders', id },

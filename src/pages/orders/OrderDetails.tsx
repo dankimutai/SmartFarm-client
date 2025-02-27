@@ -21,18 +21,42 @@ import {
   Loader2,
   AlertCircle
 } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'react-hot-toast';
 
 const OrderDetails = () => {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   
   // Fetch order details
   const { 
     data: orderResponse, 
     isLoading, 
-    error 
+    error,
+    refetch
   } = ordersApi.useGetOrderByIdQuery(orderId || '');
+
+
+  // Cancel order mutation - note we're now using DELETE method to match your backend
+  const [cancelOrder, { isLoading: isCancelling }] = ordersApi.useCancelOrderMutation();
+
+  // Handle order cancellation
+  const handleCancelOrder = async () => {
+    if (!orderId) return;
+    
+    try {
+      await cancelOrder(Number(orderId)).unwrap();
+      toast.success('Order cancelled successfully');
+      setShowCancelConfirm(false);
+      refetch(); // Refresh the order data
+    } catch (error) {
+      console.error('Failed to cancel order:', error);
+      toast.error('Failed to cancel the order. Please try again.');
+    }
+  };
   
+
   // Extract order from response (handle both response formats)
   const order = orderResponse && 'data' in orderResponse 
     ? orderResponse.data 
@@ -442,22 +466,57 @@ const OrderDetails = () => {
             </CardContent>
           </Card>
           
-          {/* Action Buttons */}
-          {['pending', 'confirmed'].includes(order.orderStatus) && (
-            <Card>
-              <CardContent className="p-4">
-                <button className="w-full mb-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
-                  Cancel Order
+        {/* Action Buttons */}
+    {['pending', 'confirmed'].includes(order.orderStatus) && (
+      <Card>
+        <CardContent className="p-4">
+          {showCancelConfirm ? (
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-gray-900">Are you sure you want to cancel this order?</p>
+              <p className="text-xs text-gray-500">This action cannot be undone.</p>
+              <div className="flex space-x-2">
+                <button 
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  onClick={() => setShowCancelConfirm(false)}
+                  disabled={isCancelling}
+                >
+                  No, Keep It
                 </button>
-                <button className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
-                  Contact Support
+                <button 
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                  onClick={handleCancelOrder}
+                  disabled={isCancelling}
+                >
+                  {isCancelling ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin inline" />
+                      Cancelling...
+                    </>
+                  ) : (
+                    'Yes, Cancel'
+                  )}
                 </button>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
+          ) : (
+            <>
+              <button 
+                className="w-full mb-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                onClick={() => setShowCancelConfirm(true)}
+              >
+                Cancel Order
+              </button>
+              <button className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+                Contact Support
+              </button>
+            </>
           )}
-        </div>
+        </CardContent>
+      </Card>
+    )}
       </div>
     </div>
+  </div>
   );
 };
 

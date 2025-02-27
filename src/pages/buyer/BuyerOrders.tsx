@@ -29,7 +29,7 @@ const BuyerOrders = () => {
     isLoading, 
     error,
     refetch 
-  } = ordersApi.useGetOrdersQuery(user?.id || 0, {
+  } = ordersApi.useGetUserOrdersQuery(user?.id || 0, {
     skip: !user?.id
   });
 

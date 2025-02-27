@@ -1,11 +1,29 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { 
-  ShoppingBag, Eye, Clock, Truck, CheckCircle, XCircle, 
-  Download, X, Search, Calendar, CreditCard, User, Package, 
-  ArrowRight, Phone, MessageSquare, RefreshCw, Send, 
-  DollarSign, AlertCircle, Loader2, FileSpreadsheet
+import {
+  ShoppingBag,
+  Eye,
+  Clock,
+  Truck,
+  CheckCircle,
+  XCircle,
+  Download,
+  X,
+  Search,
+  Calendar,
+  CreditCard,
+  User,
+  Package,
+  ArrowRight,
+  Phone,
+  MessageSquare,
+  RefreshCw,
+  Send,
+  DollarSign,
+  AlertCircle,
+  Loader2,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { ordersApi } from '../../store/api/ordersApi';
 import { RootState } from '../../store/store';
@@ -70,14 +88,17 @@ const OrdersManagement = () => {
   const userId = user?.id;
 
   // Updated to use the correct query and data structure
-  const { 
-    data: ordersResponse, 
-    isLoading, 
-    error 
+  const {
+    data: ordersResponse,
+    isLoading,
+    error,
+    refetch,
   } = ordersApi.useGetFarmerOrdersQuery(userId ?? 0, {
-    skip: !userId
+    skip: !userId,
+    // Add polling interval to auto-refresh data (15 minutes)
+    pollingInterval: 15 * 60 * 1000,
   });
-  
+
   // Ensure we're accessing the data correctly
   const orders = ordersResponse?.data || [];
   console.log('Orders:', orders);
@@ -87,7 +108,8 @@ const OrdersManagement = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOrderDetails, setSelectedOrderDetails] = useState<Order | null>(null);
-  
+  const [lastRefreshTime, setLastRefreshTime] = useState<Date>(new Date());
+
   // Add states for handling loading and feedback
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateFeedback, setUpdateFeedback] = useState<{
@@ -96,14 +118,22 @@ const OrdersManagement = () => {
   }>({ message: '', type: null });
   const [isExporting, setIsExporting] = useState(false);
 
+  // Update the last refresh time when orders data changes
+  useEffect(() => {
+    if (ordersResponse) {
+      setLastRefreshTime(new Date());
+    }
+  }, [ordersResponse]);
+
   // Get order statistics
   const getOrderStats = () => {
-    if (!orders || orders.length === 0) return {
-      pending: 0,
-      in_transit: 0,
-      delivered: 0,
-      cancelled: 0
-    };
+    if (!orders || orders.length === 0)
+      return {
+        pending: 0,
+        in_transit: 0,
+        delivered: 0,
+        cancelled: 0,
+      };
 
     return {
       pending: orders.filter((o: Order) => o.orderStatus === 'pending').length,
@@ -115,22 +145,29 @@ const OrdersManagement = () => {
 
   const stats = getOrderStats();
 
+  // Add a refresh button function
+  const handleRefresh = () => {
+    refetch();
+    setLastRefreshTime(new Date());
+  };
+
   // Filter orders based on search term and status
-  const filteredOrders = orders?.filter((order: Order) => {
-    const buyerInfo = order.buyer?.companyName || '';
-    const buyerType = order.buyer?.businessType || '';
-    const productName = order.listing?.product?.name || '';
-    
-    const matchesSearch = 
-      order.id.toString().includes(searchTerm.toLowerCase()) ||
-      buyerInfo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      buyerType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      productName.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = filterStatus === 'all' || order.orderStatus === filterStatus;
-    
-    return matchesSearch && matchesStatus;
-  }) || [];
+  const filteredOrders =
+    orders?.filter((order: Order) => {
+      const buyerInfo = order.buyer?.companyName || '';
+      const buyerType = order.buyer?.businessType || '';
+      const productName = order.listing?.product?.name || '';
+
+      const matchesSearch =
+        order.id.toString().includes(searchTerm.toLowerCase()) ||
+        buyerInfo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        buyerType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        productName.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesStatus = filterStatus === 'all' || order.orderStatus === filterStatus;
+
+      return matchesSearch && matchesStatus;
+    }) || [];
 
   const getStatusColor = (status: Order['orderStatus']) => {
     switch (status) {
@@ -180,19 +217,22 @@ const OrdersManagement = () => {
   };
 
   // Enhanced update function that handles both order status and payment status
-  const handleStatusUpdate = async (orderId: number, updateData: {
-    orderStatus?: Order['orderStatus'];
-    paymentStatus?: Order['paymentStatus'];
-  }) => {
+  const handleStatusUpdate = async (
+    orderId: number,
+    updateData: {
+      orderStatus?: Order['orderStatus'];
+      paymentStatus?: Order['paymentStatus'];
+    }
+  ) => {
     setIsUpdating(true);
     setUpdateFeedback({ message: '', type: null });
-    
+
     try {
       await updateOrder({
         id: orderId,
-        updateData
+        updateData,
       }).unwrap();
-      
+
       // Determine success message based on what was updated
       let successMessage = '';
       if (updateData.orderStatus && updateData.paymentStatus) {
@@ -202,22 +242,24 @@ const OrdersManagement = () => {
       } else if (updateData.paymentStatus) {
         successMessage = `Payment status successfully updated to ${updateData.paymentStatus}`;
       }
-      
+
       setUpdateFeedback({
         message: successMessage,
-        type: 'success'
+        type: 'success',
       });
-      
+
+      // Refresh orders data from backend
+      refetch();
+
       // Auto-close modal after successful update after 1.5 seconds
       setTimeout(() => {
         handleCloseModal();
       }, 1500);
-      
     } catch (error) {
       console.error('Failed to update order:', error);
       setUpdateFeedback({
         message: 'Failed to update. Please try again.',
-        type: 'error'
+        type: 'error',
       });
     } finally {
       setIsUpdating(false);
@@ -247,71 +289,72 @@ const OrdersManagement = () => {
   // Function to export all orders to Excel
   const exportAllOrdersToExcel = () => {
     setIsExporting(true);
-    
+
     try {
       // Transform orders data for export
       const exportData = orders.map((order: Order) => ({
         'Order ID': order.id,
-        'Date': formatDate(order.createdAt),
-        'Customer': order.buyer?.companyName || 'Individual',
+        Date: formatDate(order.createdAt),
+        Customer: order.buyer?.companyName || 'Individual',
         'Customer Type': order.buyer?.businessType || 'N/A',
-        'Product': order.listing?.product?.name || 'N/A',
-        'Category': order.listing?.product?.category || 'N/A',
-        'Quantity': order.quantity,
-        'Unit': order.listing?.product?.unit || 'N/A',
+        Product: order.listing?.product?.name || 'N/A',
+        Category: order.listing?.product?.category || 'N/A',
+        Quantity: order.quantity,
+        Unit: order.listing?.product?.unit || 'N/A',
         'Price (KES)': parseFloat(order.totalPrice).toLocaleString(),
-        'Status': order.orderStatus.replace('_', ' '),
+        Status: order.orderStatus.replace('_', ' '),
         'Payment Status': order.paymentStatus,
       }));
 
       // Create a worksheet
       const worksheet = XLSX.utils.json_to_sheet(exportData);
-      
+
       // Create column widths
       const columnWidths = [
-        { wch: 10 },  // Order ID
-        { wch: 12 },  // Date
-        { wch: 20 },  // Customer
-        { wch: 15 },  // Customer Type
-        { wch: 20 },  // Product
-        { wch: 15 },  // Category
-        { wch: 10 },  // Quantity
-        { wch: 10 },  // Unit
-        { wch: 15 },  // Price
-        { wch: 15 },  // Status
-        { wch: 15 },  // Payment Status
+        { wch: 10 }, // Order ID
+        { wch: 12 }, // Date
+        { wch: 20 }, // Customer
+        { wch: 15 }, // Customer Type
+        { wch: 20 }, // Product
+        { wch: 15 }, // Category
+        { wch: 10 }, // Quantity
+        { wch: 10 }, // Unit
+        { wch: 15 }, // Price
+        { wch: 15 }, // Status
+        { wch: 15 }, // Payment Status
       ];
-      
+
       worksheet['!cols'] = columnWidths;
-      
+
       // Create a workbook
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Orders');
-      
+
       // Generate Excel file
       const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-      
+
       // Save file
-      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const blob = new Blob([excelBuffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
       const fileName = `SmartFarm_Orders_${new Date().toISOString().split('T')[0]}.xlsx`;
       saveAs(blob, fileName);
-      
+
       // Show success message
       setUpdateFeedback({
         message: 'Orders exported successfully!',
-        type: 'success'
+        type: 'success',
       });
-      
+
       // Clear success message after 3 seconds
       setTimeout(() => {
         setUpdateFeedback({ message: '', type: null });
       }, 3000);
-      
     } catch (error) {
       console.error('Error exporting orders:', error);
       setUpdateFeedback({
         message: 'Failed to export orders. Please try again.',
-        type: 'error'
+        type: 'error',
       });
     } finally {
       setIsExporting(false);
@@ -321,71 +364,72 @@ const OrdersManagement = () => {
   // Function to export filtered orders to Excel
   const exportFilteredOrdersToExcel = () => {
     setIsExporting(true);
-    
+
     try {
       // Transform filtered orders data for export
       const exportData = filteredOrders.map((order: Order) => ({
         'Order ID': order.id,
-        'Date': formatDate(order.createdAt),
-        'Customer': order.buyer?.companyName || 'Individual',
+        Date: formatDate(order.createdAt),
+        Customer: order.buyer?.companyName || 'Individual',
         'Customer Type': order.buyer?.businessType || 'N/A',
-        'Product': order.listing?.product?.name || 'N/A',
-        'Category': order.listing?.product?.category || 'N/A',
-        'Quantity': order.quantity,
-        'Unit': order.listing?.product?.unit || 'N/A',
+        Product: order.listing?.product?.name || 'N/A',
+        Category: order.listing?.product?.category || 'N/A',
+        Quantity: order.quantity,
+        Unit: order.listing?.product?.unit || 'N/A',
         'Price (KES)': parseFloat(order.totalPrice).toLocaleString(),
-        'Status': order.orderStatus.replace('_', ' '),
+        Status: order.orderStatus.replace('_', ' '),
         'Payment Status': order.paymentStatus,
       }));
 
       // Create a worksheet
       const worksheet = XLSX.utils.json_to_sheet(exportData);
-      
+
       // Create column widths
       const columnWidths = [
-        { wch: 10 },  // Order ID
-        { wch: 12 },  // Date
-        { wch: 20 },  // Customer
-        { wch: 15 },  // Customer Type
-        { wch: 20 },  // Product
-        { wch: 15 },  // Category
-        { wch: 10 },  // Quantity
-        { wch: 10 },  // Unit
-        { wch: 15 },  // Price
-        { wch: 15 },  // Status
-        { wch: 15 },  // Payment Status
+        { wch: 10 }, // Order ID
+        { wch: 12 }, // Date
+        { wch: 20 }, // Customer
+        { wch: 15 }, // Customer Type
+        { wch: 20 }, // Product
+        { wch: 15 }, // Category
+        { wch: 10 }, // Quantity
+        { wch: 10 }, // Unit
+        { wch: 15 }, // Price
+        { wch: 15 }, // Status
+        { wch: 15 }, // Payment Status
       ];
-      
+
       worksheet['!cols'] = columnWidths;
-      
+
       // Create a workbook
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Filtered Orders');
-      
+
       // Generate Excel file
       const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-      
+
       // Save file
-      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const blob = new Blob([excelBuffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
       const fileName = `SmartFarm_Filtered_Orders_${new Date().toISOString().split('T')[0]}.xlsx`;
       saveAs(blob, fileName);
-      
+
       // Show success message
       setUpdateFeedback({
         message: 'Filtered orders exported successfully!',
-        type: 'success'
+        type: 'success',
       });
-      
+
       // Clear success message after 3 seconds
       setTimeout(() => {
         setUpdateFeedback({ message: '', type: null });
       }, 3000);
-      
     } catch (error) {
       console.error('Error exporting filtered orders:', error);
       setUpdateFeedback({
         message: 'Failed to export orders. Please try again.',
-        type: 'error'
+        type: 'error',
       });
     } finally {
       setIsExporting(false);
@@ -395,73 +439,76 @@ const OrdersManagement = () => {
   // Function to export a single order to Excel
   const exportSingleOrderToExcel = (order: Order) => {
     setIsExporting(true);
-    
+
     try {
       // Create detailed order data for export
-      const exportData = [{
-        'Order ID': order.id,
-        'Order Date': formatDate(order.createdAt),
-        'Customer': order.buyer?.companyName || 'Individual',
-        'Customer Type': order.buyer?.businessType || 'N/A',
-        'Product': order.listing?.product?.name || 'N/A',
-        'Category': order.listing?.product?.category || 'N/A',
-        'Quantity': order.quantity,
-        'Unit': order.listing?.product?.unit || 'N/A',
-        'Unit Price (KES)': parseFloat(order.listing?.price?.toString() || '0').toLocaleString(),
-        'Total Price (KES)': parseFloat(order.totalPrice).toLocaleString(),
-        'Order Status': order.orderStatus.replace('_', ' '),
-        'Payment Status': order.paymentStatus,
-      }];
+      const exportData = [
+        {
+          'Order ID': order.id,
+          'Order Date': formatDate(order.createdAt),
+          Customer: order.buyer?.companyName || 'Individual',
+          'Customer Type': order.buyer?.businessType || 'N/A',
+          Product: order.listing?.product?.name || 'N/A',
+          Category: order.listing?.product?.category || 'N/A',
+          Quantity: order.quantity,
+          Unit: order.listing?.product?.unit || 'N/A',
+          'Unit Price (KES)': parseFloat(order.listing?.price?.toString() || '0').toLocaleString(),
+          'Total Price (KES)': parseFloat(order.totalPrice).toLocaleString(),
+          'Order Status': order.orderStatus.replace('_', ' '),
+          'Payment Status': order.paymentStatus,
+        },
+      ];
 
       // Create a worksheet
       const worksheet = XLSX.utils.json_to_sheet(exportData);
-      
+
       // Create column widths
       const columnWidths = [
-        { wch: 10 },  // Order ID
-        { wch: 12 },  // Date
-        { wch: 20 },  // Customer
-        { wch: 15 },  // Customer Type
-        { wch: 20 },  // Product
-        { wch: 15 },  // Category
-        { wch: 10 },  // Quantity
-        { wch: 10 },  // Unit
-        { wch: 15 },  // Unit Price
-        { wch: 15 },  // Total Price
-        { wch: 15 },  // Status
-        { wch: 15 },  // Payment Status
+        { wch: 10 }, // Order ID
+        { wch: 12 }, // Date
+        { wch: 20 }, // Customer
+        { wch: 15 }, // Customer Type
+        { wch: 20 }, // Product
+        { wch: 15 }, // Category
+        { wch: 10 }, // Quantity
+        { wch: 10 }, // Unit
+        { wch: 15 }, // Unit Price
+        { wch: 15 }, // Total Price
+        { wch: 15 }, // Status
+        { wch: 15 }, // Payment Status
       ];
-      
+
       worksheet['!cols'] = columnWidths;
-      
+
       // Create a workbook
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, `Order_${order.id}`);
-      
+
       // Generate Excel file
       const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-      
+
       // Save file
-      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const blob = new Blob([excelBuffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
       const fileName = `SmartFarm_Order_${order.id}.xlsx`;
       saveAs(blob, fileName);
-      
+
       // Show success message
       setUpdateFeedback({
         message: 'Order exported successfully!',
-        type: 'success'
+        type: 'success',
       });
-      
+
       // Clear success message after 3 seconds
       setTimeout(() => {
         setUpdateFeedback({ message: '', type: null });
       }, 3000);
-      
     } catch (error) {
       console.error('Error exporting order:', error);
       setUpdateFeedback({
         message: 'Failed to export order. Please try again.',
-        type: 'error'
+        type: 'error',
       });
     } finally {
       setIsExporting(false);
@@ -470,7 +517,9 @@ const OrdersManagement = () => {
 
   if (isLoading) return <LoadingSpinner />;
   if (error && (error as any)?.data?.message !== 'No orders found for this farmer') {
-    return <div>Error loading orders: {(error as any)?.data?.message || 'Something went wrong'}</div>;
+    return (
+      <div>Error loading orders: {(error as any)?.data?.message || 'Something went wrong'}</div>
+    );
   }
 
   // Add this keyframe animation to your global CSS or component styles
@@ -487,17 +536,44 @@ const OrdersManagement = () => {
   return (
     <div className="p-6">
       <style>{keyframeStyles}</style>
-      
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Orders Management</h1>
-          <p className="text-gray-500 mt-1">View and manage your customer orders</p>
+          <p className="text-gray-500 mt-1">
+            View and manage your customer orders
+            <span className="ml-2 text-xs text-gray-400">
+              Last updated: {lastRefreshTime.toLocaleTimeString()}
+              {lastRefreshTime.toLocaleDateString() === new Date().toLocaleDateString()
+                ? ''
+                : ` (${lastRefreshTime.toLocaleDateString()})`}
+            </span>
+          </p>
         </div>
-        <div className="mt-4 md:mt-0">
+        <div className="mt-4 md:mt-0 flex space-x-3">
+          {/* Refresh button */}
+          <button
+            className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+            onClick={handleRefresh}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Refreshing...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh Data
+              </>
+            )}
+          </button>
+
           {/* Export button with dropdown */}
           <div className="relative group">
-            <button 
+            <button
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               onClick={exportAllOrdersToExcel}
               disabled={isExporting || orders.length === 0}
@@ -514,12 +590,16 @@ const OrdersManagement = () => {
                 </>
               )}
             </button>
-            
+
             {/* Success/Error message for export */}
             {updateFeedback.type && updateFeedback.message && (
-              <div className={`absolute top-full right-0 mt-2 px-4 py-2 rounded-md shadow-lg z-10 animate-fadeIn ${
-                updateFeedback.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-              }`}>
+              <div
+                className={`absolute top-full right-0 mt-2 px-4 py-2 rounded-md shadow-lg z-10 animate-fadeIn ${
+                  updateFeedback.type === 'success'
+                    ? 'bg-green-50 text-green-800'
+                    : 'bg-red-50 text-red-800'
+                }`}
+              >
                 {updateFeedback.type === 'success' ? (
                   <CheckCircle className="w-4 h-4 inline mr-1" />
                 ) : (
@@ -549,7 +629,7 @@ const OrdersManagement = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -565,7 +645,7 @@ const OrdersManagement = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -581,7 +661,7 @@ const OrdersManagement = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -627,10 +707,10 @@ const OrdersManagement = () => {
                 <option value="delivered">Delivered</option>
                 <option value="cancelled">Cancelled</option>
               </select>
-              
+
               {/* Export filtered results button */}
               {filteredOrders.length > 0 && (searchTerm || filterStatus !== 'all') && (
-                <button 
+                <button
                   className="flex items-center px-4 py-2 bg-gray-100 text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors whitespace-nowrap"
                   onClick={exportFilteredOrdersToExcel}
                   disabled={isExporting}
@@ -669,7 +749,9 @@ const OrdersManagement = () => {
                       <div className="flex items-center">
                         <div>
                           <div className="font-medium">{order.buyer?.companyName || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">{order.buyer?.businessType || 'N/A'}</div>
+                          <div className="text-sm text-gray-500">
+                            {order.buyer?.businessType || 'N/A'}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -682,13 +764,19 @@ const OrdersManagement = () => {
                       KES {parseFloat(order.totalPrice || '0').toLocaleString()}
                     </td>
                     <td className="px-4 py-4">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.orderStatus)}`}>
+                      <span
+                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.orderStatus)}`}
+                      >
                         {getStatusIcon(order.orderStatus)}
-                        <span className="ml-1 capitalize">{order.orderStatus.replace('_', ' ')}</span>
+                        <span className="ml-1 capitalize">
+                          {order.orderStatus.replace('_', ' ')}
+                        </span>
                       </span>
                     </td>
                     <td className="px-4 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(order.paymentStatus)}`}>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(order.paymentStatus)}`}
+                      >
                         {order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
                       </span>
                     </td>
@@ -697,14 +785,14 @@ const OrdersManagement = () => {
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center space-x-3">
-                        <button 
+                        <button
                           onClick={() => handleViewOrder(order)}
                           className="text-blue-600 hover:text-blue-800"
                           title="View order details"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => exportSingleOrderToExcel(order)}
                           className="text-green-600 hover:text-green-800"
                           disabled={isExporting}
@@ -736,7 +824,7 @@ const OrdersManagement = () => {
                 <ShoppingBag className="h-5 w-5" />
                 Order #<span className="font-mono">{selectedOrderDetails.id}</span>
               </h2>
-              <button 
+              <button
                 onClick={handleCloseModal}
                 className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition-colors"
                 aria-label="Close modal"
@@ -747,21 +835,33 @@ const OrdersManagement = () => {
 
             <div className="divide-y divide-gray-100">
               {/* Status Banner */}
-              <div className={`px-6 py-4 ${
-                selectedOrderDetails.orderStatus === 'delivered' ? 'bg-green-50' :
-                selectedOrderDetails.orderStatus === 'cancelled' ? 'bg-red-50' :
-                selectedOrderDetails.orderStatus === 'in_transit' ? 'bg-purple-50' :
-                selectedOrderDetails.orderStatus === 'confirmed' ? 'bg-blue-50' :
-                'bg-yellow-50'
-              }`}>
+              <div
+                className={`px-6 py-4 ${
+                  selectedOrderDetails.orderStatus === 'delivered'
+                    ? 'bg-green-50'
+                    : selectedOrderDetails.orderStatus === 'cancelled'
+                      ? 'bg-red-50'
+                      : selectedOrderDetails.orderStatus === 'in_transit'
+                        ? 'bg-purple-50'
+                        : selectedOrderDetails.orderStatus === 'confirmed'
+                          ? 'bg-blue-50'
+                          : 'bg-yellow-50'
+                }`}
+              >
                 <div className="flex items-center">
-                  <div className={`p-2 rounded-full mr-4 ${
-                    selectedOrderDetails.orderStatus === 'delivered' ? 'bg-green-100 text-green-700' :
-                    selectedOrderDetails.orderStatus === 'cancelled' ? 'bg-red-100 text-red-700' :
-                    selectedOrderDetails.orderStatus === 'in_transit' ? 'bg-purple-100 text-purple-700' :
-                    selectedOrderDetails.orderStatus === 'confirmed' ? 'bg-blue-100 text-blue-700' :
-                    'bg-yellow-100 text-yellow-700'
-                  }`}>
+                  <div
+                    className={`p-2 rounded-full mr-4 ${
+                      selectedOrderDetails.orderStatus === 'delivered'
+                        ? 'bg-green-100 text-green-700'
+                        : selectedOrderDetails.orderStatus === 'cancelled'
+                          ? 'bg-red-100 text-red-700'
+                          : selectedOrderDetails.orderStatus === 'in_transit'
+                            ? 'bg-purple-100 text-purple-700'
+                            : selectedOrderDetails.orderStatus === 'confirmed'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-yellow-100 text-yellow-700'
+                    }`}
+                  >
                     {getStatusIcon(selectedOrderDetails.orderStatus)}
                   </div>
                   <div>
@@ -769,11 +869,15 @@ const OrdersManagement = () => {
                       {selectedOrderDetails.orderStatus.replace('_', ' ')} Order
                     </p>
                     <p className="text-sm text-gray-600">
-                      {selectedOrderDetails.orderStatus === 'delivered' ? 'This order has been successfully delivered.' :
-                      selectedOrderDetails.orderStatus === 'cancelled' ? 'This order has been cancelled.' :
-                      selectedOrderDetails.orderStatus === 'in_transit' ? 'This order is on its way to the customer.' :
-                      selectedOrderDetails.orderStatus === 'confirmed' ? 'This order has been confirmed and is being prepared.' :
-                      'This order is awaiting your confirmation.'}
+                      {selectedOrderDetails.orderStatus === 'delivered'
+                        ? 'This order has been successfully delivered.'
+                        : selectedOrderDetails.orderStatus === 'cancelled'
+                          ? 'This order has been cancelled.'
+                          : selectedOrderDetails.orderStatus === 'in_transit'
+                            ? 'This order is on its way to the customer.'
+                            : selectedOrderDetails.orderStatus === 'confirmed'
+                              ? 'This order has been confirmed and is being prepared.'
+                              : 'This order is awaiting your confirmation.'}
                     </p>
                   </div>
                 </div>
@@ -781,22 +885,26 @@ const OrdersManagement = () => {
 
               {/* Success/Error Feedback */}
               {updateFeedback.type && (
-                <div className={`px-6 py-3 ${
-                  updateFeedback.type === 'success' 
-                    ? 'bg-green-50 border-green-100' 
-                    : 'bg-red-50 border-red-100'
-                }`}>
+                <div
+                  className={`px-6 py-3 ${
+                    updateFeedback.type === 'success'
+                      ? 'bg-green-50 border-green-100'
+                      : 'bg-red-50 border-red-100'
+                  }`}
+                >
                   <div className="flex items-center">
                     {updateFeedback.type === 'success' ? (
                       <CheckCircle className="w-5 h-5 mr-2 text-green-600" />
                     ) : (
                       <AlertCircle className="w-5 h-5 mr-2 text-red-600" />
                     )}
-                    <p className={`${
-                      updateFeedback.type === 'success' 
-                        ? 'text-green-800' 
-                        : 'text-red-800'
-                    }`}>{updateFeedback.message}</p>
+                    <p
+                      className={`${
+                        updateFeedback.type === 'success' ? 'text-green-800' : 'text-red-800'
+                      }`}
+                    >
+                      {updateFeedback.message}
+                    </p>
                   </div>
                 </div>
               )}
@@ -815,11 +923,13 @@ const OrdersManagement = () => {
                       <div className="space-y-3">
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-500">Date Placed</span>
-                          <span className="font-medium">{new Date(selectedOrderDetails.createdAt).toLocaleDateString('en-US', {
-                            year: 'numeric', 
-                            month: 'short', 
-                            day: 'numeric'
-                          })}</span>
+                          <span className="font-medium">
+                            {new Date(selectedOrderDetails.createdAt).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-500">Order ID</span>
@@ -837,23 +947,34 @@ const OrdersManagement = () => {
                       <div className="space-y-3">
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-500">Payment Status</span>
-                          <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(selectedOrderDetails.paymentStatus)}`}>
-                            {selectedOrderDetails.paymentStatus.charAt(0).toUpperCase() + selectedOrderDetails.paymentStatus.slice(1)}
+                          <span
+                            className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(selectedOrderDetails.paymentStatus)}`}
+                          >
+                            {selectedOrderDetails.paymentStatus.charAt(0).toUpperCase() +
+                              selectedOrderDetails.paymentStatus.slice(1)}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-500">Total Amount</span>
-                          <span className="font-bold text-lg">KES {parseFloat(selectedOrderDetails.totalPrice).toLocaleString()}</span>
+                          <span className="font-bold text-lg">
+                            KES {parseFloat(selectedOrderDetails.totalPrice).toLocaleString()}
+                          </span>
                         </div>
                       </div>
 
                       {/* Payment Status Update Section */}
                       {selectedOrderDetails.paymentStatus !== 'paid' && (
                         <div className="mt-3 pt-3 border-t border-gray-200">
-                          <h4 className="text-xs font-medium text-gray-500 mb-2">Update Payment Status</h4>
+                          <h4 className="text-xs font-medium text-gray-500 mb-2">
+                            Update Payment Status
+                          </h4>
                           <div className="flex gap-2">
                             <button
-                              onClick={() => handleStatusUpdate(selectedOrderDetails.id, { paymentStatus: 'paid' })}
+                              onClick={() =>
+                                handleStatusUpdate(selectedOrderDetails.id, {
+                                  paymentStatus: 'paid',
+                                })
+                              }
                               disabled={isUpdating}
                               className="flex items-center justify-center px-3 py-1 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
@@ -866,7 +987,11 @@ const OrdersManagement = () => {
                             </button>
                             {selectedOrderDetails.paymentStatus !== 'failed' && (
                               <button
-                                onClick={() => handleStatusUpdate(selectedOrderDetails.id, { paymentStatus: 'failed' })}
+                                onClick={() =>
+                                  handleStatusUpdate(selectedOrderDetails.id, {
+                                    paymentStatus: 'failed',
+                                  })
+                                }
                                 disabled={isUpdating}
                                 className="flex items-center justify-center px-3 py-1 border border-red-600 text-red-600 text-xs rounded hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               >
@@ -891,8 +1016,12 @@ const OrdersManagement = () => {
                       </h3>
                       <div className="space-y-3">
                         <div>
-                          <p className="font-medium">{selectedOrderDetails.buyer?.companyName || 'Individual Buyer'}</p>
-                          <p className="text-sm text-gray-500">{selectedOrderDetails.buyer?.businessType || 'N/A'}</p>
+                          <p className="font-medium">
+                            {selectedOrderDetails.buyer?.companyName || 'Individual Buyer'}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {selectedOrderDetails.buyer?.businessType || 'N/A'}
+                          </p>
                         </div>
                         <div className="pt-2 flex gap-2">
                           <button className="text-xs flex items-center text-emerald-600 hover:text-emerald-800 transition-colors">
@@ -918,10 +1047,10 @@ const OrdersManagement = () => {
                       </h3>
                       <div className="flex items-center space-x-4 py-2">
                         {selectedOrderDetails.listing?.product?.imageUrl ? (
-                          <img 
-                            src={selectedOrderDetails.listing.product.imageUrl} 
+                          <img
+                            src={selectedOrderDetails.listing.product.imageUrl}
                             alt={selectedOrderDetails.listing.product.name}
-                            className="w-16 h-16 object-cover rounded-md" 
+                            className="w-16 h-16 object-cover rounded-md"
                           />
                         ) : (
                           <div className="w-16 h-16 bg-gray-200 rounded-md flex items-center justify-center">
@@ -929,9 +1058,12 @@ const OrdersManagement = () => {
                           </div>
                         )}
                         <div className="flex-1">
-                          <p className="font-medium">{selectedOrderDetails.listing?.product?.name || 'N/A'}</p>
+                          <p className="font-medium">
+                            {selectedOrderDetails.listing?.product?.name || 'N/A'}
+                          </p>
                           <p className="text-sm text-gray-500">
-                            {selectedOrderDetails.quantity} {selectedOrderDetails.listing?.product?.unit || 'units'}
+                            {selectedOrderDetails.quantity}{' '}
+                            {selectedOrderDetails.listing?.product?.unit || 'units'}
                           </p>
                           <p className="text-xs text-gray-500 mt-1">
                             Category: {selectedOrderDetails.listing?.product?.category || 'N/A'}
@@ -940,7 +1072,10 @@ const OrdersManagement = () => {
                         <div className="text-right">
                           <p className="text-xs text-gray-500">Unit Price</p>
                           <p className="font-medium">
-                            KES {parseFloat(selectedOrderDetails.listing?.price?.toString() || '0').toLocaleString()}
+                            KES{' '}
+                            {parseFloat(
+                              selectedOrderDetails.listing?.price?.toString() || '0'
+                            ).toLocaleString()}
                           </p>
                         </div>
                       </div>
@@ -963,75 +1098,100 @@ const OrdersManagement = () => {
                       <div className="space-y-4">
                         <div className="flex">
                           <div className="flex flex-col items-center mr-4">
-                            <div className={`h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center`}>
+                            <div
+                              className={`h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center`}
+                            >
                               <CheckCircle className="h-3 w-3 text-white" />
-                              </div>
+                            </div>
                             <div className="h-full w-0.5 bg-gray-200 mt-1"></div>
                           </div>
                           <div>
                             <p className="font-medium">Order Placed</p>
-                            <p className="text-xs text-gray-500">{new Date(selectedOrderDetails.createdAt).toLocaleString()}</p>
+                            <p className="text-xs text-gray-500">
+                              {new Date(selectedOrderDetails.createdAt).toLocaleString()}
+                            </p>
                           </div>
                         </div>
-                        
+
                         <div className="flex">
                           <div className="flex flex-col items-center mr-4">
-                            <div className={`h-5 w-5 rounded-full ${
-                              selectedOrderDetails.orderStatus === 'confirmed' || 
-                              selectedOrderDetails.orderStatus === 'in_transit' || 
-                              selectedOrderDetails.orderStatus === 'delivered' ? 'bg-emerald-500' : 'bg-gray-300'
-                            } flex items-center justify-center`}>
-                              {(selectedOrderDetails.orderStatus === 'confirmed' || 
-                                selectedOrderDetails.orderStatus === 'in_transit' || 
-                                selectedOrderDetails.orderStatus === 'delivered') && 
-                                <CheckCircle className="h-3 w-3 text-white" />}
+                            <div
+                              className={`h-5 w-5 rounded-full ${
+                                selectedOrderDetails.orderStatus === 'confirmed' ||
+                                selectedOrderDetails.orderStatus === 'in_transit' ||
+                                selectedOrderDetails.orderStatus === 'delivered'
+                                  ? 'bg-emerald-500'
+                                  : 'bg-gray-300'
+                              } flex items-center justify-center`}
+                            >
+                              {(selectedOrderDetails.orderStatus === 'confirmed' ||
+                                selectedOrderDetails.orderStatus === 'in_transit' ||
+                                selectedOrderDetails.orderStatus === 'delivered') && (
+                                <CheckCircle className="h-3 w-3 text-white" />
+                              )}
                             </div>
                             <div className="h-full w-0.5 bg-gray-200 mt-1"></div>
                           </div>
                           <div>
                             <p className="font-medium">Order Confirmed</p>
                             <p className="text-xs text-gray-500">
-                              {selectedOrderDetails.orderStatus === 'confirmed' || 
-                              selectedOrderDetails.orderStatus === 'in_transit' || 
-                              selectedOrderDetails.orderStatus === 'delivered' ? 'Order has been confirmed' : 'Awaiting confirmation'}
+                              {selectedOrderDetails.orderStatus === 'confirmed' ||
+                              selectedOrderDetails.orderStatus === 'in_transit' ||
+                              selectedOrderDetails.orderStatus === 'delivered'
+                                ? 'Order has been confirmed'
+                                : 'Awaiting confirmation'}
                             </p>
                           </div>
                         </div>
 
                         <div className="flex">
                           <div className="flex flex-col items-center mr-4">
-                            <div className={`h-5 w-5 rounded-full ${
-                              selectedOrderDetails.orderStatus === 'in_transit' || 
-                              selectedOrderDetails.orderStatus === 'delivered' ? 'bg-emerald-500' : 'bg-gray-300'
-                            } flex items-center justify-center`}>
-                              {(selectedOrderDetails.orderStatus === 'in_transit' || 
-                                selectedOrderDetails.orderStatus === 'delivered') && 
-                                <CheckCircle className="h-3 w-3 text-white" />}
+                            <div
+                              className={`h-5 w-5 rounded-full ${
+                                selectedOrderDetails.orderStatus === 'in_transit' ||
+                                selectedOrderDetails.orderStatus === 'delivered'
+                                  ? 'bg-emerald-500'
+                                  : 'bg-gray-300'
+                              } flex items-center justify-center`}
+                            >
+                              {(selectedOrderDetails.orderStatus === 'in_transit' ||
+                                selectedOrderDetails.orderStatus === 'delivered') && (
+                                <CheckCircle className="h-3 w-3 text-white" />
+                              )}
                             </div>
                             <div className="h-full w-0.5 bg-gray-200 mt-1"></div>
                           </div>
                           <div>
                             <p className="font-medium">In Transit</p>
                             <p className="text-xs text-gray-500">
-                              {selectedOrderDetails.orderStatus === 'in_transit' || 
-                              selectedOrderDetails.orderStatus === 'delivered' ? 'Order is on its way' : 'Not yet shipped'}
+                              {selectedOrderDetails.orderStatus === 'in_transit' ||
+                              selectedOrderDetails.orderStatus === 'delivered'
+                                ? 'Order is on its way'
+                                : 'Not yet shipped'}
                             </p>
                           </div>
                         </div>
 
                         <div className="flex">
                           <div className="flex flex-col items-center mr-4">
-                            <div className={`h-5 w-5 rounded-full ${
-                              selectedOrderDetails.orderStatus === 'delivered' ? 'bg-emerald-500' : 'bg-gray-300'
-                            } flex items-center justify-center`}>
-                              {selectedOrderDetails.orderStatus === 'delivered' && 
-                                <CheckCircle className="h-3 w-3 text-white" />}
+                            <div
+                              className={`h-5 w-5 rounded-full ${
+                                selectedOrderDetails.orderStatus === 'delivered'
+                                  ? 'bg-emerald-500'
+                                  : 'bg-gray-300'
+                              } flex items-center justify-center`}
+                            >
+                              {selectedOrderDetails.orderStatus === 'delivered' && (
+                                <CheckCircle className="h-3 w-3 text-white" />
+                              )}
                             </div>
                           </div>
                           <div>
                             <p className="font-medium">Delivered</p>
                             <p className="text-xs text-gray-500">
-                              {selectedOrderDetails.orderStatus === 'delivered' ? 'Order has been delivered' : 'Not yet delivered'}
+                              {selectedOrderDetails.orderStatus === 'delivered'
+                                ? 'Order has been delivered'
+                                : 'Not yet delivered'}
                             </p>
                           </div>
                         </div>
@@ -1041,128 +1201,146 @@ const OrdersManagement = () => {
                 </div>
 
                 {/* Update Order Status Section - Enhanced with better UI feedback */}
-                {selectedOrderDetails.orderStatus !== 'delivered' && selectedOrderDetails.orderStatus !== 'cancelled' && (
-                  <div className="mt-6 border-t border-gray-200 pt-6">
-                    <h3 className="text-sm uppercase tracking-wider font-semibold text-gray-500 mb-4 flex items-center">
-                      <ArrowRight className="mr-2 h-4 w-4" />
-                      Update Order Status
-                    </h3>
-                    
-                    {selectedOrderDetails.orderStatus === 'pending' && (
-                      <div className="grid grid-cols-2 gap-4">
-                        <button
-                          onClick={() => handleStatusUpdate(selectedOrderDetails.id, { orderStatus: 'confirmed' })}
-                          disabled={isUpdating}
-                          className="inline-flex items-center justify-center px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {isUpdating ? (
-                            <>
-                              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                              Updating...
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle className="w-5 h-5 mr-2" />
-                              Confirm Order
-                            </>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => handleStatusUpdate(selectedOrderDetails.id, { orderStatus: 'cancelled' })}
-                          disabled={isUpdating}
-                          className="inline-flex items-center justify-center px-4 py-3 bg-white border border-red-600 text-red-600 rounded-lg hover:bg-red-50 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {isUpdating ? (
-                            <>
-                              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                              Updating...
-                            </>
-                          ) : (
-                            <>
-                              <XCircle className="w-5 h-5 mr-2" />
-                              Cancel Order
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    )}
+                {selectedOrderDetails.orderStatus !== 'delivered' &&
+                  selectedOrderDetails.orderStatus !== 'cancelled' && (
+                    <div className="mt-6 border-t border-gray-200 pt-6">
+                      <h3 className="text-sm uppercase tracking-wider font-semibold text-gray-500 mb-4 flex items-center">
+                        <ArrowRight className="mr-2 h-4 w-4" />
+                        Update Order Status
+                      </h3>
 
-                    {selectedOrderDetails.orderStatus === 'confirmed' && (
-                      <div>
-                        <button
-                          onClick={() => handleStatusUpdate(selectedOrderDetails.id, { orderStatus: 'in_transit' })}
-                          disabled={isUpdating}
-                          className="inline-flex items-center justify-center px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 w-full disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {isUpdating ? (
-                            <>
-                              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                              Updating...
-                            </>
-                          ) : (
-                            <>
-                              <Truck className="w-5 h-5 mr-2" />
-                              Mark as In Transit
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    )}
+                      {selectedOrderDetails.orderStatus === 'pending' && (
+                        <div className="grid grid-cols-2 gap-4">
+                          <button
+                            onClick={() =>
+                              handleStatusUpdate(selectedOrderDetails.id, {
+                                orderStatus: 'confirmed',
+                              })
+                            }
+                            disabled={isUpdating}
+                            className="inline-flex items-center justify-center px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isUpdating ? (
+                              <>
+                                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                Updating...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="w-5 h-5 mr-2" />
+                                Confirm Order
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleStatusUpdate(selectedOrderDetails.id, {
+                                orderStatus: 'cancelled',
+                              })
+                            }
+                            disabled={isUpdating}
+                            className="inline-flex items-center justify-center px-4 py-3 bg-white border border-red-600 text-red-600 rounded-lg hover:bg-red-50 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isUpdating ? (
+                              <>
+                                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                Updating...
+                              </>
+                            ) : (
+                              <>
+                                <XCircle className="w-5 h-5 mr-2" />
+                                Cancel Order
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
 
-                    {selectedOrderDetails.orderStatus === 'in_transit' && (
-                      <div>
-                        <button
-                          onClick={() => handleStatusUpdate(selectedOrderDetails.id, { orderStatus: 'delivered' })}
-                          disabled={isUpdating}
-                          className="inline-flex items-center justify-center px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-green-500 w-full disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {isUpdating ? (
-                            <>
-                              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                              Updating...
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle className="w-5 h-5 mr-2" />
-                              Mark as Delivered
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
+                      {selectedOrderDetails.orderStatus === 'confirmed' && (
+                        <div>
+                          <button
+                            onClick={() =>
+                              handleStatusUpdate(selectedOrderDetails.id, {
+                                orderStatus: 'in_transit',
+                              })
+                            }
+                            disabled={isUpdating}
+                            className="inline-flex items-center justify-center px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isUpdating ? (
+                              <>
+                                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                Updating...
+                              </>
+                            ) : (
+                              <>
+                                <Truck className="w-5 h-5 mr-2" />
+                                Mark as In Transit
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+
+                      {selectedOrderDetails.orderStatus === 'in_transit' && (
+                        <div>
+                          <button
+                            onClick={() =>
+                              handleStatusUpdate(selectedOrderDetails.id, {
+                                orderStatus: 'delivered',
+                              })
+                            }
+                            disabled={isUpdating}
+                            className="inline-flex items-center justify-center px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-green-500 w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isUpdating ? (
+                              <>
+                                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                Updating...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="w-5 h-5 mr-2" />
+                                Mark as Delivered
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
               </div>
 
               {/* Modal Footer */}
               <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between">
-                <button 
+                <button
                   onClick={handleCloseModal}
                   className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                 >
                   Close
                 </button>
-                
-                {selectedOrderDetails.orderStatus !== 'delivered' && selectedOrderDetails.orderStatus !== 'cancelled' && (
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => exportSingleOrderToExcel(selectedOrderDetails)}
-                      disabled={isExporting}
-                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 flex items-center"
-                    >
-                      {isExporting ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <FileSpreadsheet className="w-4 h-4 mr-2" />
-                      )}
-                      Export to Excel
-                    </button>
-                    <button className="px-4 py-2 border border-emerald-600 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 flex items-center">
-                      <Send className="w-4 h-4 mr-2" />
-                      Contact Buyer
-                    </button>
-                  </div>
-                )}
+
+                {selectedOrderDetails.orderStatus !== 'delivered' &&
+                  selectedOrderDetails.orderStatus !== 'cancelled' && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => exportSingleOrderToExcel(selectedOrderDetails)}
+                        disabled={isExporting}
+                        className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 flex items-center"
+                      >
+                        {isExporting ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <FileSpreadsheet className="w-4 h-4 mr-2" />
+                        )}
+                        Export to Excel
+                      </button>
+                      <button className="px-4 py-2 border border-emerald-600 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 flex items-center">
+                        <Send className="w-4 h-4 mr-2" />
+                        Contact Buyer
+                      </button>
+                    </div>
+                  )}
               </div>
             </div>
           </div>
@@ -1175,9 +1353,9 @@ const OrdersManagement = () => {
           <ShoppingBag className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-2 text-sm font-medium text-gray-900">No orders found</h3>
           <p className="mt-1 text-sm text-gray-500">
-            {searchTerm || filterStatus !== 'all' 
-              ? 'Try adjusting your search or filter to find what you\'re looking for.'
-              : 'You haven\'t received any orders yet.'}
+            {searchTerm || filterStatus !== 'all'
+              ? "Try adjusting your search or filter to find what you're looking for."
+              : "You haven't received any orders yet."}
           </p>
         </div>
       )}
