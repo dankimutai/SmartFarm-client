@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Search, Edit2, Trash2, UserPlus, Loader2, Phone } from 'lucide-react';
+import { Search, Edit2, Trash2, UserPlus, Loader2, Phone, User } from 'lucide-react';
 import { usersApi } from '../../store/api/usersApi';
 import { toast } from 'react-hot-toast';
-import type { User, Role } from '../../types/user.types';
+import type { User as UserType, Role } from '../../types/user.types';
 import AddUserModal from '../../components/admin/AddUserModal';
 
 const roles: Role[] = ['admin', 'farmer', 'buyer'];
@@ -119,7 +119,7 @@ const UsersManagement = () => {
                 </tr>
               </thead>
               <tbody>
-                {users.map((user: User) => (
+                {users.map((user: UserType) => (
                   <tr key={user.id} className="border-b hover:bg-gray-50">
                     <td className="px-4 py-4">
                       <input
@@ -132,11 +132,17 @@ const UsersManagement = () => {
                     <td className="px-4 py-4">
                       <div className="flex items-center">
                         <div className="h-10 w-10 flex-shrink-0">
-                          <img
-                            src={user.image || '/api/placeholder/40/40'}
-                            alt={user.name}
-                            className="h-10 w-10 rounded-full object-cover"
-                          />
+                          {user.image ? (
+                            <img
+                              src={user.image}
+                              alt={user.name}
+                              className="h-10 w-10 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                              <User className="h-5 w-5 text-gray-500" />
+                            </div>
+                          )}
                         </div>
                         <div className="ml-4">
                           <div className="font-medium text-gray-900">{user.name}</div>

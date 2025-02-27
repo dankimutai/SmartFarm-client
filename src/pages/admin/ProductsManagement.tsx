@@ -15,7 +15,10 @@ import {
   MoreVertical,
   LayoutGrid,
   List,
+  Loader2
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 // Updated Listing interface to match API response types
 interface Listing {
@@ -26,6 +29,17 @@ interface Listing {
   status: string;
 }
 
+// Define Product interface
+interface Product {
+  id: number;
+  name: string;
+  category: string;
+  unit: string;
+  imageUrl: string | null;
+  listings: Listing[];
+}
+
+
 const ProductsManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
@@ -33,17 +47,20 @@ const ProductsManagement = () => {
   const [filterCategory, setFilterCategory] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Helper functions
   const getLatestListing = (listings: Listing[]) => {
+    if (!listings || listings.length === 0) return null;
     return [...listings].sort(
       (a, b) => new Date(b.availableDate).getTime() - new Date(a.availableDate).getTime()
     )[0];
   };
 
   const getTotalQuantity = (listings: Listing[]) => {
+    if (!listings || listings.length === 0) return 0;
     // Convert string quantities to numbers before summing
-    return listings.reduce((sum, listing) => sum + parseFloat(listing.quantity), 0);
+    return listings.reduce((sum, listing) => sum + parseFloat(listing.quantity || '0'), 0);
   };
 
   const getStockStatus = (quantity: number) => {
@@ -75,6 +92,151 @@ const ProductsManagement = () => {
 
   const [deleteProduct] = productsApi.useDeleteProductMutation();
  
+  // Function to handle Excel export
+  const exportToExcel = async () => {
+    setIsExporting(true);
+    
+    try {
+      // Get current products for export
+      if (!productsResponse?.data) {
+        throw new Error("No products data available for export");
+      }
+      
+      const products = productsResponse.data;
+      
+      // Transform products data for Excel
+      const exportData = products.map((product: Product) => {
+        const latestListing = getLatestListing(product.listings);
+        const totalQuantity = getTotalQuantity(product.listings);
+        const stockStatus = getStockStatus(totalQuantity);
+        
+        return {
+          'Product ID': product.id,
+          'Name': product.name,
+          'Category': product.category,
+          'Unit': product.unit,
+          'Latest Price': latestListing ? `$${parseFloat(latestListing.price).toFixed(2)}` : 'N/A',
+          'Total Stock': `${totalQuantity} ${product.unit}`,
+          'Stock Status': stockStatus.text,
+          'Next Available': latestListing ? formatDate(latestListing.availableDate) : 'N/A',
+          'Number of Listings': product.listings.length
+        };
+      });
+
+      // Create worksheet
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      
+      // Set column widths
+      const columnWidths = [
+        { wch: 10 },  // Product ID
+        { wch: 25 },  // Name
+        { wch: 15 },  // Category
+        { wch: 10 },  // Unit
+        { wch: 12 },  // Latest Price
+        { wch: 15 },  // Total Stock
+        { wch: 15 },  // Stock Status
+        { wch: 15 },  // Next Available
+        { wch: 15 },  // Number of Listings
+      ];
+      
+      worksheet['!cols'] = columnWidths;
+      
+      // Create workbook
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Products');
+      
+      // Generate Excel file
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      
+      // Save file
+      const fileName = `SmartFarm_Products_${new Date().toISOString().split('T')[0]}.xlsx`;
+      saveAs(new Blob([excelBuffer], { type: 'application/octet-stream' }), fileName);
+      
+    } catch (error) {
+      console.error('Error exporting products:', error);
+      alert('Failed to export products. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Function to export only selected products
+  const exportSelectedToExcel = async () => {
+    if (selectedProducts.length === 0) {
+      alert('Please select at least one product to export');
+      return;
+    }
+    
+    setIsExporting(true);
+    
+    try {
+      // Get current products for export
+      if (!productsResponse?.data) {
+        throw new Error("No products data available for export");
+      }
+      
+      const allProducts = productsResponse.data;
+      
+      // Filter only selected products
+      const selectedProductsData = allProducts.filter((product: Product) => 
+        selectedProducts.includes(product.id)
+      );
+      
+      // Transform products data for Excel
+      const exportData = selectedProductsData.map((product: Product) => {
+        const latestListing = getLatestListing(product.listings);
+        const totalQuantity = getTotalQuantity(product.listings);
+        const stockStatus = getStockStatus(totalQuantity);
+        
+        return {
+          'Product ID': product.id,
+          'Name': product.name,
+          'Category': product.category,
+          'Unit': product.unit,
+          'Latest Price': latestListing ? `$${parseFloat(latestListing.price).toFixed(2)}` : 'N/A',
+          'Total Stock': `${totalQuantity} ${product.unit}`,
+          'Stock Status': stockStatus.text,
+          'Next Available': latestListing ? formatDate(latestListing.availableDate) : 'N/A',
+          'Number of Listings': product.listings.length
+        };
+      });
+
+      // Create worksheet
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      
+      // Set column widths
+      const columnWidths = [
+        { wch: 10 },  // Product ID
+        { wch: 25 },  // Name
+        { wch: 15 },  // Category
+        { wch: 10 },  // Unit
+        { wch: 12 },  // Latest Price
+        { wch: 15 },  // Total Stock
+        { wch: 15 },  // Stock Status
+        { wch: 15 },  // Next Available
+        { wch: 15 },  // Number of Listings
+      ];
+      
+      worksheet['!cols'] = columnWidths;
+      
+      // Create workbook
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Selected Products');
+      
+      // Generate Excel file
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      
+      // Save file
+      const fileName = `SmartFarm_Selected_Products_${new Date().toISOString().split('T')[0]}.xlsx`;
+      saveAs(new Blob([excelBuffer], { type: 'application/octet-stream' }), fileName);
+      
+    } catch (error) {
+      console.error('Error exporting selected products:', error);
+      alert('Failed to export selected products. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleProductSelection = (productId: number) => {
     setSelectedProducts((prev) =>
@@ -174,7 +336,7 @@ const ProductsManagement = () => {
                   </span>
                 </td>
                 <td className="px-4 py-4 text-gray-900">
-                  ${latestListing ? parseFloat(latestListing.price).toFixed(2) : 'N/A'}
+                  Ksh{latestListing ? parseFloat(latestListing.price).toFixed(2) : 'N/A'}
                 </td>
                 <td className="px-4 py-4 text-gray-900">
                   {totalQuantity} {product.unit}
@@ -290,9 +452,22 @@ const ProductsManagement = () => {
             <Upload className="w-4 h-4 mr-2" />
             Import
           </button>
-          <button className="flex items-center px-4 py-2 border rounded-lg hover:bg-gray-50">
-            <Download className="w-4 h-4 mr-2" />
-            Export
+          <button 
+            className="flex items-center px-4 py-2 border rounded-lg hover:bg-gray-50"
+            onClick={exportToExcel}
+            disabled={isExporting}
+          >
+            {isExporting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Exporting...
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </>
+            )}
           </button>
           <button className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
             <Plus className="w-4 h-4 mr-2" />
@@ -309,12 +484,26 @@ const ProductsManagement = () => {
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-500">{selectedProducts.length} selected</span>
               {selectedProducts.length > 0 && (
-                <button
-                  className="text-red-600 hover:text-red-800 text-sm"
-                  onClick={handleDeleteSelected}
-                >
-                  Delete Selected
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
+                    onClick={exportSelectedToExcel}
+                    disabled={isExporting}
+                  >
+                    {isExporting ? (
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                    ) : (
+                      <Download className="w-3 h-3 mr-1" />
+                    )}
+                    Export Selected
+                  </button>
+                  <button
+                    className="text-red-600 hover:text-red-800 text-sm"
+                    onClick={handleDeleteSelected}
+                  >
+                    Delete Selected
+                  </button>
+                </div>
               )}
             </div>
           </div>

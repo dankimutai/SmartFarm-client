@@ -7,17 +7,22 @@ import {
   Search, 
   Filter,
   Download,
-  Eye,
-  XCircle,
-  CheckCircle,
   Clock,
-  Truck
+  Truck,
+  CheckCircle,
+  XCircle,
+  User,
+  Building,
+  Loader2
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 const OrdersManagement = () => {
   const [selectedOrders, setSelectedOrders] = useState<number[]>([]);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
 
   // Fetch orders with RTK Query
   const { 
@@ -26,10 +31,6 @@ const OrdersManagement = () => {
     isError,
     error 
   } = ordersApi.useGetOrdersQuery();
-
-
-
-  const [updateOrderStatus] = ordersApi.useUpdateOrderStatusMutation();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -77,17 +78,6 @@ const OrdersManagement = () => {
     }
   };
 
-  const handleStatusUpdate = async (orderId: number, status: string) => {
-    try {
-      await updateOrderStatus({ 
-        id: orderId, 
-        status: status as 'pending' | 'confirmed' | 'in_transit' | 'delivered' | 'cancelled'
-      }).unwrap();
-    } catch (error) {
-      console.error('Failed to update order status:', error);
-    }
-  };
-
   // Filter orders based on status and search term
   const filteredOrders = orders?.filter(order => {
     const matchesStatus = filterStatus === 'all' || order.orderStatus === filterStatus;
@@ -97,6 +87,154 @@ const OrdersManagement = () => {
       order.listing.product.name.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesStatus && matchesSearch;
   });
+
+  // Function to format date for Excel export
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (error) {
+      return 'Invalid date';
+    }
+  };
+
+  // Function to export all orders to Excel
+  const exportAllOrdersToExcel = () => {
+    setIsExporting(true);
+    
+    try {
+      if (!filteredOrders || filteredOrders.length === 0) {
+        alert('No orders to export');
+        setIsExporting(false);
+        return;
+      }
+      
+      // Transform orders data for export
+      const exportData = filteredOrders.map(order => ({
+        'Order ID': order.id,
+        'Date': formatDate(order.createdAt),
+        'Customer': order.buyer.companyName || 'Individual Buyer',
+        'Business Type': order.buyer.businessType || 'N/A',
+        'Product': order.listing.product.name,
+        'Category': order.listing.product.category,
+        'Quantity': order.quantity,
+        'Unit': order.listing.product.unit,
+        'Price (KSh)': Number(order.totalPrice).toFixed(2),
+        'Status': order.orderStatus.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+        'Payment Status': order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1),
+      }));
+
+      // Create a worksheet
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      
+      // Create column widths
+      const columnWidths = [
+        { wch: 10 },  // Order ID
+        { wch: 12 },  // Date
+        { wch: 20 },  // Customer
+        { wch: 15 },  // Business Type
+        { wch: 20 },  // Product
+        { wch: 15 },  // Category
+        { wch: 10 },  // Quantity
+        { wch: 10 },  // Unit
+        { wch: 15 },  // Price
+        { wch: 15 },  // Status
+        { wch: 15 },  // Payment Status
+      ];
+      
+      worksheet['!cols'] = columnWidths;
+      
+      // Create a workbook
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Orders');
+      
+      // Generate Excel file
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      
+      // Save file
+      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const fileName = `SmartFarm_Orders_${new Date().toISOString().split('T')[0]}.xlsx`;
+      saveAs(blob, fileName);
+      
+    } catch (error) {
+      console.error('Error exporting orders:', error);
+      alert('Failed to export orders. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+  
+  // Function to export selected orders to Excel
+  const exportSelectedOrdersToExcel = () => {
+    setIsExporting(true);
+    
+    try {
+      if (selectedOrders.length === 0) {
+        alert('Please select at least one order to export');
+        setIsExporting(false);
+        return;
+      }
+      
+      // Filter only selected orders
+      const selectedOrdersData = filteredOrders?.filter(order => selectedOrders.includes(order.id)) || [];
+      
+      // Transform orders data for export
+      const exportData = selectedOrdersData.map(order => ({
+        'Order ID': order.id,
+        'Date': formatDate(order.createdAt),
+        'Customer': order.buyer.companyName || 'Individual Buyer',
+        'Business Type': order.buyer.businessType || 'N/A',
+        'Product': order.listing.product.name,
+        'Category': order.listing.product.category,
+        'Quantity': order.quantity,
+        'Unit': order.listing.product.unit,
+        'Price (KSh)': Number(order.totalPrice).toFixed(2),
+        'Status': order.orderStatus.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+        'Payment Status': order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1),
+      }));
+
+      // Create a worksheet
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      
+      // Create column widths
+      const columnWidths = [
+        { wch: 10 },  // Order ID
+        { wch: 12 },  // Date
+        { wch: 20 },  // Customer
+        { wch: 15 },  // Business Type
+        { wch: 20 },  // Product
+        { wch: 15 },  // Category
+        { wch: 10 },  // Quantity
+        { wch: 10 },  // Unit
+        { wch: 15 },  // Price
+        { wch: 15 },  // Status
+        { wch: 15 },  // Payment Status
+      ];
+      
+      worksheet['!cols'] = columnWidths;
+      
+      // Create a workbook
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Selected Orders');
+      
+      // Generate Excel file
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      
+      // Save file
+      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const fileName = `SmartFarm_Selected_Orders_${new Date().toISOString().split('T')[0]}.xlsx`;
+      saveAs(blob, fileName);
+      
+    } catch (error) {
+      console.error('Error exporting selected orders:', error);
+      alert('Failed to export selected orders. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   if (isLoading) {
     return <LoadingSpinner />;
@@ -119,9 +257,22 @@ const OrdersManagement = () => {
           <p className="text-gray-500 mt-1">View and manage customer orders</p>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center px-4 py-2 border rounded-lg hover:bg-gray-50">
-            <Download className="w-4 h-4 mr-2" />
-            Export Orders
+          <button 
+            className="flex items-center px-4 py-2 border rounded-lg hover:bg-gray-50"
+            onClick={exportAllOrdersToExcel}
+            disabled={isExporting || !filteredOrders || filteredOrders.length === 0}
+          >
+            {isExporting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Exporting...
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4 mr-2" />
+                Export Orders
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -135,6 +286,20 @@ const OrdersManagement = () => {
               <span className="text-sm text-gray-500">
                 {selectedOrders.length} selected
               </span>
+              {selectedOrders.length > 0 && (
+                <button 
+                  className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
+                  onClick={exportSelectedOrdersToExcel}
+                  disabled={isExporting}
+                >
+                  {isExporting ? (
+                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  ) : (
+                    <Download className="w-3 h-3 mr-1" />
+                  )}
+                  Export Selected
+                </button>
+              )}
             </div>
           </div>
 
@@ -194,7 +359,6 @@ const OrdersManagement = () => {
                   <th className="px-4 py-3 text-left">Status</th>
                   <th className="px-4 py-3 text-left">Payment</th>
                   <th className="px-4 py-3 text-left">Date</th>
-                  <th className="px-4 py-3 text-left">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -217,13 +381,15 @@ const OrdersManagement = () => {
                     <td className="px-4 py-4 font-medium">#{order.id}</td>
                     <td className="px-4 py-4">
                       <div className="flex items-center">
-                        <img 
-                          src={'/api/placeholder/32/32'}
-                          alt={order.buyer.companyName || 'Buyer'}
-                          className="h-8 w-8 rounded-full mr-3"
-                        />
+                        <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center mr-3">
+                          {order.buyer.businessType === 'individual' ? (
+                            <User className="h-4 w-4 text-gray-600" />
+                          ) : (
+                            <Building className="h-4 w-4 text-gray-600" />
+                          )}
+                        </div>
                         <div>
-                          <div className="font-medium">{order.buyer.companyName || 'No Company Name'}</div>
+                          <div className="font-medium">{order.buyer.companyName || 'Individual Buyer'}</div>
                           <div className="text-sm text-gray-500">{order.buyer.businessType || 'No Business Type'}</div>
                         </div>
                       </div>
@@ -237,7 +403,7 @@ const OrdersManagement = () => {
                       </div>
                     </td>
                     <td className="px-4 py-4 font-medium">
-                      ${Number(order.totalPrice).toFixed(2)}
+                      Ksh{Number(order.totalPrice).toFixed(2)}
                     </td>
                     <td className="px-4 py-4">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.orderStatus)}`}>
@@ -260,27 +426,6 @@ const OrdersManagement = () => {
                         month: 'short',
                         day: 'numeric'
                       })}
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center space-x-3">
-                        <button 
-                          className="text-blue-600 hover:text-blue-800"
-                          title="View Order Details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <select
-                          className="text-sm border rounded px-2 py-1"
-                          value={order.orderStatus}
-                          onChange={(e) => handleStatusUpdate(order.id, e.target.value)}
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="confirmed">Confirmed</option>
-                          <option value="in_transit">In Transit</option>
-                          <option value="delivered">Delivered</option>
-                          <option value="cancelled">Cancelled</option>
-                        </select>
-                      </div>
                     </td>
                   </tr>
                 ))}
