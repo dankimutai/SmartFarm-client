@@ -8,6 +8,7 @@ import {
   Edit2,
   Save,
   X,
+  Building,
 } from 'lucide-react';
 
 interface BusinessProfile {
@@ -27,6 +28,7 @@ interface BusinessProfile {
     pinNumber: string;
     vatNumber: string;
   };
+  logo?: string;
 }
 
 const mockProfile: BusinessProfile = {
@@ -137,11 +139,17 @@ const BuyerProfile = () => {
             <CardContent className="p-6">
               <div className="flex flex-col items-center">
                 <div className="relative">
-                  <img
-                    src="/api/placeholder/150/150"
-                    alt="Company Logo"
-                    className="w-32 h-32 rounded-lg"
-                  />
+                  {profile.logo ? (
+                    <img
+                      src={profile.logo}
+                      alt="Company Logo"
+                      className="w-32 h-32 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="w-32 h-32 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
+                      <Building className="w-16 h-16" />
+                    </div>
+                  )}
                   <button className="absolute bottom-0 right-0 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700">
                     <Camera className="w-4 h-4" />
                   </button>
