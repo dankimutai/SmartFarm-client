@@ -21,7 +21,7 @@ const testimonials: Testimonial[] = [
       role: "Small-Scale Farmer",
       company: "Green Valley Farms",
       image: Sarah, // Use the imported image directly
-      quote: "SmartFarm has transformed how I manage my farm. The platform's data insights and direct market access have increased my profits by 40% in just six months."
+      quote: "SmartFarm has transformed how I manage my farm. The platform's data insights and direct market access have increased my profits by 25% in just six months."
     },
     {
       id: 2,
@@ -29,7 +29,7 @@ const testimonials: Testimonial[] = [
       role: "Agricultural Supplier",
       company: "Agri Solutions Ltd",
       image: David, // Use the imported image directly
-      quote: "The platform's efficiency in connecting farmers with suppliers has revolutionized our distribution process. We've seen a 60% increase in rural market reach."
+      quote: "The platform's efficiency in connecting farmers with suppliers has revolutionized our distribution process. We've seen a 30% increase in rural market reach."
     },
     {
       id: 3,
@@ -88,23 +88,23 @@ export const TestimonialSection = () => {
             With Innovation and Excellence Backed by Rave Reviews
           </p>
           
-          {/* Stats */}
+          {/* Stats - Updated with realistic numbers */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto mb-16">
             <div className="text-center">
-              <div className="text-4xl font-bold text-emerald-600 mb-2">300k+</div>
+              <div className="text-4xl font-bold text-emerald-600 mb-2">400+</div>
               <div className="text-gray-600">Active Users</div>
             </div>
             <div className="text-center">
-              <div className="text-4xl font-bold text-emerald-600 mb-2">95%</div>
+              <div className="text-4xl font-bold text-emerald-600 mb-2">85%</div>
               <div className="text-gray-600">Satisfaction Rate</div>
             </div>
             <div className="text-center">
-              <div className="text-4xl font-bold text-emerald-600 mb-2">40%</div>
-              <div className="text-gray-600">Profit Increase</div>
+              <div className="text-4xl font-bold text-emerald-600 mb-2">22%</div>
+              <div className="text-gray-600">Avg. Profit Increase</div>
             </div>
             <div className="text-center">
-              <div className="text-4xl font-bold text-emerald-600 mb-2">50+</div>
-              <div className="text-gray-600">Countries</div>
+              <div className="text-4xl font-bold text-emerald-600 mb-2">12</div>
+              <div className="text-gray-600">Counties Served</div>
             </div>
           </div>
         </div>

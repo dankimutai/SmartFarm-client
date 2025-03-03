@@ -1,8 +1,43 @@
 import { Button } from '../common/Button';
 import HeroFarm from '../../assets/hero-farm.jpg'
 import AppPreview from '../../assets/smartfarm-mockup.svg'
+import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import { RootState } from '../../store/store';
 
 export const HeroSection = () => {
+  const navigate = useNavigate();
+  const user = useSelector((state: RootState) => state.auth.user);
+  
+  const handleSellingClick = () => {
+    if (!user) {
+      // If user is not logged in, redirect to login
+      navigate('/login', { state: { redirect: '/farmer/products' } });
+    } else if (user.role === 'farmer') {
+      // If user is a farmer, redirect to farmer products
+      navigate('/farmer/products');
+    } else if (user.role === 'buyer') {
+      // If user is a buyer, redirect to marketplace
+      navigate('/buyer/marketplace');
+    } else {
+      // Default fallback
+      navigate('/login');
+    }
+  };
+  
+  const handleBuyingClick = () => {
+    if (!user) {
+      // If user is not logged in, redirect to login
+      navigate('/login', { state: { redirect: '/buyer/marketplace' } });
+    } else if (user.role === 'buyer') {
+      // If user is a buyer, redirect to marketplace
+      navigate('/buyer/marketplace');
+    } else {
+      // Default fallback for farmers or other roles
+      navigate('/buyer/marketplace');
+    }
+  };
+
   return (
     <div className="relative min-h-[90vh] overflow-hidden">
       {/* Background Image with Overlay */}
@@ -38,6 +73,7 @@ export const HeroSection = () => {
               variant="primary" 
               size="lg"
               className="min-w-[180px] shadow-lg shadow-emerald-500/30"
+              onClick={handleSellingClick}
             >
               Start Selling →
             </Button>
@@ -45,6 +81,7 @@ export const HeroSection = () => {
               variant="outline" 
               size="lg"
               className="min-w-[180px] text-white border-white hover:bg-white/10"
+              onClick={handleBuyingClick}
             >
               Start Buying →
             </Button>
@@ -53,20 +90,20 @@ export const HeroSection = () => {
           {/* Key Statistics */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 pt-8 border-t border-white/20">
             <div>
-              <div className="text-3xl font-bold text-emerald-400">20K+</div>
+              <div className="text-3xl font-bold text-emerald-400">400+</div>
               <div className="text-gray-300">Active Farmers</div>
             </div>
             <div>
-              <div className="text-3xl font-bold text-emerald-400">50+</div>
-              <div className="text-gray-300">Local Markets</div>
+              <div className="text-3xl font-bold text-emerald-400">12</div>
+              <div className="text-gray-300">County Markets</div>
             </div>
             <div>
-              <div className="text-3xl font-bold text-emerald-400">95%</div>
-              <div className="text-gray-300">Success Rate</div>
+              <div className="text-3xl font-bold text-emerald-400">85%</div>
+              <div className="text-gray-300">Order Completion</div>
             </div>
             <div>
-              <div className="text-3xl font-bold text-emerald-400">₹2M+</div>
-              <div className="text-gray-300">Daily Trades</div>
+              <div className="text-3xl font-bold text-emerald-400">KSh 250K+</div>
+              <div className="text-gray-300">Weekly Trade</div>
             </div>
           </div>
         </div>

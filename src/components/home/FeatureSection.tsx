@@ -1,4 +1,7 @@
 import { Card } from '../common/Card';
+import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import { RootState } from '../../store/store';
 
 const features = [
   {
@@ -34,6 +37,19 @@ const features = [
 ];
 
 export const FeaturesSection = () => {
+  const navigate = useNavigate();
+  const user = useSelector((state: RootState) => state.auth.user);
+  
+  const handleGetStartedClick = () => {
+    if (!user) {
+      // If user is not logged in, redirect to login page
+      navigate('/auth/login', { state: { redirect: '/marketplace' } });
+    } else {
+      // If user is logged in, redirect to marketplace
+      navigate('/buyer/marketplace');
+    }
+  };
+
   return (
     <section className="py-20 bg-gradient-to-b from-white to-emerald-50">
       <div className="container mx-auto px-4">
@@ -81,7 +97,10 @@ export const FeaturesSection = () => {
         </div>
 
         <div className="mt-12 text-center">
-          <button className="bg-emerald-600 text-white px-8 py-3 rounded-lg hover:bg-emerald-700 transition-colors duration-300 shadow-lg hover:shadow-xl font-medium">
+          <button 
+            className="bg-emerald-600 text-white px-8 py-3 rounded-lg hover:bg-emerald-700 transition-colors duration-300 shadow-lg hover:shadow-xl font-medium"
+            onClick={handleGetStartedClick}
+          >
             Get Started Today
           </button>
         </div>

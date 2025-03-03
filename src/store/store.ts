@@ -51,3 +51,6 @@ export const store = configureStore({
 
 export const persistor = persistStore(store);
 setupListeners(store.dispatch);
+export type AppDispatch = typeof store.dispatch;
+
+export default store;

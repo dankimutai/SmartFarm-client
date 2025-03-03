@@ -44,6 +44,7 @@ export interface RegisterCredentials {
 export interface AuthResponse {
   user: User;
   token: string;
+  isAuthenticated: boolean; 
 }
 
 // Current auth state
