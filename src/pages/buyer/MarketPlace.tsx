@@ -18,6 +18,7 @@ import type { Listing } from '../../types/marketplace.types';
 import { toast } from 'react-hot-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { Button } from '../../components/common/Button';
+import PaymentModal from '../payments/paymentModal';
 
 const categories = [
   'All Categories',
@@ -50,6 +51,11 @@ const BuyerMarketplace = () => {
   const [currentListing, setCurrentListing] = useState<Listing | null>(null);
   const [orderQuantity, setOrderQuantity] = useState<number>(1);
   const [orderProcessing, setOrderProcessing] = useState(false);
+  
+  // Payment modal states
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [orderTotal, setOrderTotal] = useState(0);
+  const [orderId, setOrderId] = useState<number | null>(null);
 
   const { user } = useSelector((state: RootState) => state.auth);
   const [createOrder] = ordersApi.useCreateOrderMutation();
@@ -109,16 +115,37 @@ const BuyerMarketplace = () => {
       
       console.log('Submitting order:', orderData);
       
-      await createOrder(orderData).unwrap();
+      const response = await createOrder(orderData).unwrap();
       
-      toast.success('Order placed successfully!');
+      // Close the order dialog
       setIsOrderDialogOpen(false);
+      
+      // Set order data for payment
+      if (response.success && response.data) {
+        setOrderId(response.data.id);
+        setOrderTotal(totalPrice);
+        
+        // Open payment modal
+        setIsPaymentModalOpen(true);
+      } else {
+        toast.error('Failed to place order. Please try again.');
+      }
     } catch (error) {
       console.error('Failed to place order:', error);
       toast.error('Failed to place order. Please try again.');
     } finally {
       setOrderProcessing(false);
     }
+  };
+
+  const handlePaymentSuccess = () => {
+    // Handle successful payment
+    toast.success('Payment successful! Your order has been placed.');
+    
+    // Close payment modal after a short delay
+    setTimeout(() => {
+      setIsPaymentModalOpen(false);
+    }, 2000);
   };
 
   if (error) {
@@ -358,8 +385,7 @@ const BuyerMarketplace = () => {
               <div className="bg-blue-50 p-3 rounded-md mb-4 text-sm text-blue-800 flex items-start">
                 <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
                 <p>
-                  After placing your order, you'll need to arrange delivery with the farmer.
-                  Payment will be processed upon delivery.
+                  You'll need to pay for your order through M-Pesa after confirming.
                 </p>
               </div>
             </div>
@@ -379,6 +405,17 @@ const BuyerMarketplace = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Payment Modal */}
+      {orderId && (
+        <PaymentModal 
+          isOpen={isPaymentModalOpen} 
+          onClose={() => setIsPaymentModalOpen(false)} 
+          orderId={orderId} 
+          amount={orderTotal} 
+          onSuccess={handlePaymentSuccess} 
+        />
+      )}
     </div>
   );
 };

@@ -12,7 +12,7 @@ interface PaymentModalProps {
   onClose: () => void;
   orderId: number;
   amount: number;
-  onSuccess: (transactionId: number) => void;
+  onSuccess: (id: number) => void;
 }
 
 const PaymentModal: React.FC<PaymentModalProps> = ({
@@ -25,7 +25,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [transactionId, setTransactionId] = useState<number | null>(null);
+  const [id, setTransactionId] = useState<number | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'paid' | 'failed' | null>(null);
   const [pollingCount, setPollingCount] = useState(0);
 
@@ -34,8 +34,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     paymentApi.useInitiatePaymentMutation();
 
     const { data: transactionStatus, refetch: _refetchStatus } = 
-    paymentApi.useGetTransactionStatusQuery(transactionId || 0, { 
-      skip: !transactionId,
+    paymentApi.useGetTransactionStatusQuery(id || 0, { 
+      skip: !id,
       pollingInterval: paymentStatus === 'pending' ? 5000 : 0  // Poll every 5 seconds if pending
     });
     
