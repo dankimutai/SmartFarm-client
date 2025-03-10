@@ -6,6 +6,7 @@ import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import type { RootState } from '../../store/store';
 import CartDrawer from '../common/CartDrawer';
+import PaymentModal from '../../pages/payments/paymentModal';
 import {
   RiSearchLine,
   RiHeartLine,
@@ -45,6 +46,9 @@ const Marketplace = () => {
   const [orderProcessing, setOrderProcessing] = useState(false);
   const [currentOrderItem, setCurrentOrderItem] = useState<CartItem | null>(null);
   const [orderQuantity, setOrderQuantity] = useState<number>(1);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [orderId, setOrderId] = useState<number | null>(null);
+  const [orderAmount, setOrderAmount] = useState<number>(0);
 
   const navigate = useNavigate();
   const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
@@ -133,7 +137,6 @@ const Marketplace = () => {
   };
 
   // Handle order submission
-  // Handle order submission
   const handlePlaceOrder = async () => {
     if (!currentOrderItem || !user || !user.buyerId) {
       toast.error('User profile is incomplete. Please update your buyer profile first.');
@@ -155,23 +158,45 @@ const Marketplace = () => {
 
       console.log('Sending order data:', orderData);
 
-      await createOrder(orderData).unwrap();
+      const result = await createOrder(orderData).unwrap();
+      console.log("Order created:", result.data);
 
-      toast.success('Order placed successfully!');
+
+
+
+      toast.success('Order created! Proceed to payment.');
       setIsOrderDialogOpen(false);
+
+      // Set the order ID and amount for payment
+      setOrderId(result.data.id);
+      setOrderAmount(totalPrice);
+      
+      // Open the payment modal
+      setIsPaymentModalOpen(true);
+
+      
 
       // Remove the ordered item from the cart if it exists
       const updatedCart = cart.filter((item) => item.id !== currentOrderItem.id);
       setCart(updatedCart);
 
-      // Redirect to orders page
-      navigate('/buyer/orders');
     } catch (error) {
       console.error('Order failed', error);
       toast.error('Failed to place order. Please try again.');
     } finally {
       setOrderProcessing(false);
     }
+  };
+
+  // Handle payment success
+  const handlePaymentSuccess = (transactionId: number) => {
+    console.log('Payment successful, transaction ID:', transactionId);
+    // Close the payment modal after a short delay
+    setTimeout(() => {
+      setIsPaymentModalOpen(false);
+      // Redirect to orders page
+      navigate('/buyer/orders');
+    }, 2000);
   };
 
   // Filter listings based on search term and selected category
@@ -404,6 +429,7 @@ const Marketplace = () => {
           });
         }}
       />
+      
       {/* Order Dialog */}
       <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
@@ -493,6 +519,17 @@ const Marketplace = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Payment Modal */}
+      {orderId && orderAmount > 0 && (
+        <PaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          orderId={orderId}
+          amount={orderAmount}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
     </div>
   );
 };

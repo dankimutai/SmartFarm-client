@@ -6,6 +6,7 @@ import { ordersApi } from '../../store/api/ordersApi';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store/store';
 import { toast } from 'react-hot-toast';
+import PaymentModal from '../../pages/payments/paymentModal';
 
 // Make sure this interface matches exactly with the one in Marketplace.tsx
 interface CartItem {
@@ -26,10 +27,13 @@ interface CartDrawerProps {
   onCheckout?: (items: CartItem[]) => void;
 }
 
-const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, cart, setCart}) => {
+const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, cart, setCart }) => {
   const [processingOrder, setProcessingOrder] = useState(false);
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
   const [showPlaceOrder, setShowPlaceOrder] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [orderId, setOrderId] = useState<number | null>(null);
+  const [orderAmount, setOrderAmount] = useState<number>(0);
   
   const navigate = useNavigate();
   const { user } = useSelector((state: RootState) => state.auth);
@@ -121,33 +125,103 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, cart, setCart}
       // Get the selected items
       const selectedCartItems = cart.filter(item => selectedItems.includes(item.id));
       
-      // Process each order sequentially
-      for (const item of selectedCartItems) {
-        const orderData = {
-          buyerId: parseInt(user.buyerId.toString()),
-          listingId: parseInt(item.listingId.toString()),
-          quantity: item.quantity,
-          totalPrice: parseFloat(item.price) * item.quantity
-        };
+      // Calculate total amount
+      const totalAmount = selectedCartItems.reduce(
+        (sum, item) => sum + parseFloat(item.price) * item.quantity, 
+        0
+      );
+      
+      // For multiple items, we'll create a single order with the first item
+      // and handle the rest after payment
+      const firstItem = selectedCartItems[0];
+      const orderData = {
+        buyerId: parseInt(user.buyerId.toString()),
+        listingId: parseInt(firstItem.listingId.toString()),
+        quantity: firstItem.quantity,
+        totalPrice: totalAmount // Use total of all selected items
+      };
+      
+      console.log('Creating order with data:', orderData);
+      
+      const result = await createOrder(orderData).unwrap();
+      console.log('Order created:', result);
+      
+      // Set order ID and amount for payment
+      setOrderId(result.data.id);
+      setOrderAmount(totalAmount);
+      
+      // Hide order dialog and show payment modal
+      setShowPlaceOrder(false);
+      setIsPaymentModalOpen(true);
+      
+      // Store remaining items to process after payment
+      if (selectedCartItems.length > 1) {
+        sessionStorage.setItem(
+          'remainingCartItems', 
+          JSON.stringify(selectedCartItems.slice(1))
+        );
+      }
+      
+    } catch (error) {
+      console.error('Order creation failed', error);
+      toast.error('Failed to create order. Please try again.');
+      setProcessingOrder(false);
+    }
+  };
+  
+  // Handle payment success
+  const handlePaymentSuccess = async (transactionId: number) => {
+    console.log('Payment successful, transaction ID:', transactionId);
+    
+    try {
+      // Process any remaining items from the cart
+      const remainingItemsStr = sessionStorage.getItem('remainingCartItems');
+      
+      if (remainingItemsStr) {
+        const remainingItems = JSON.parse(remainingItemsStr) as CartItem[];
         
-        console.log('Placing order:', orderData);
+        // Process each remaining item
+        for (const item of remainingItems) {
+          const itemOrderData = {
+            buyerId: parseInt(user!.buyerId.toString()),
+            listingId: parseInt(item.listingId.toString()),
+            quantity: item.quantity,
+            totalPrice: parseFloat(item.price) * item.quantity
+          };
+          
+          await createOrder(itemOrderData).unwrap();
+        }
         
-        await createOrder(orderData).unwrap();
+        // Clear the stored items
+        sessionStorage.removeItem('remainingCartItems');
       }
       
       // Remove ordered items from cart
       setCart(cart.filter(item => !selectedItems.includes(item.id)));
       setSelectedItems([]);
-      setShowPlaceOrder(false);
+      setProcessingOrder(false);
       
-      toast.success('Orders placed successfully!');
+      // Close payment modal
+      setIsPaymentModalOpen(false);
+      
+      // Show success message
+      toast.success('Payment and orders completed successfully!');
+      
+      // Close cart drawer
+      onClose();
+      
+      // Navigate to orders page
+      setTimeout(() => {
+        navigate('/buyer/orders');
+      }, 500);
+      
+    } catch (error) {
+      console.error('Error processing remaining orders:', error);
+      toast.error('Payment successful, but there was an issue with some items. Please check your orders.');
+      setProcessingOrder(false);
+      setIsPaymentModalOpen(false);
       onClose();
       navigate('/buyer/orders');
-    } catch (error) {
-      console.error('Order failed', error);
-      toast.error('Failed to place order. Please try again.');
-    } finally {
-      setProcessingOrder(false);
     }
   };
 
@@ -234,7 +308,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, cart, setCart}
                   disabled={processingOrder}
                   className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
-                  {processingOrder ? 'Processing...' : 'Place Order'}
+                  {processingOrder ? 'Processing...' : 'Proceed to Payment'}
                 </Button>
               </div>
             </div>
@@ -378,6 +452,21 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, cart, setCart}
           </>
         )}
       </div>
+      
+      {/* Payment Modal */}
+      {orderId && orderAmount > 0 && (
+        <PaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => {
+            setIsPaymentModalOpen(false);
+            // If payment wasn't completed successfully, we may need to reset
+            setProcessingOrder(false);
+          }}
+          orderId={orderId}
+          amount={orderAmount}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
     </div>
   );
 };

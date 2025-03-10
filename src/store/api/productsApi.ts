@@ -57,7 +57,7 @@ interface ProductsQueryParams {
 export const productsApi = createApi({
   reducerPath: 'productsApi',
   baseQuery: fetchBaseQuery({
-    baseUrl: 'http://localhost:8080',
+    baseUrl: 'https://smartfarm-server.onrender.com',
     prepareHeaders: (headers, { getState }) => {
       const token = (getState() as RootState).auth.token;
       if (token) {

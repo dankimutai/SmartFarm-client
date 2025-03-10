@@ -11,7 +11,7 @@ import { usersApi } from './api/usersApi';
 import { productsApi } from './api/productsApi';
 import { ordersApi } from './api/ordersApi';
 import { farmersApi } from './api/farmersProfileAPi';
-
+import { paymentApi } from './api/paymentApi';
 const persitsConfig = {
   key: 'root',
   storage,
@@ -29,6 +29,7 @@ const rootReducer: Reducer = combineReducers({
   [productsApi.reducerPath]: productsApi.reducer,
   [ordersApi.reducerPath]: ordersApi.reducer,
   [farmersApi.reducerPath]: farmersApi.reducer,
+  [paymentApi.reducerPath]: paymentApi.reducer,
 });
 
 const persistedReducer = persistReducer(persitsConfig, rootReducer);
@@ -45,7 +46,8 @@ export const store = configureStore({
       usersApi.middleware,
       productsApi.middleware,
       ordersApi.middleware,
-      farmersApi.middleware
+      farmersApi.middleware,
+      paymentApi.middleware
     ),
 });
 

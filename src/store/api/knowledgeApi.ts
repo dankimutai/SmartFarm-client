@@ -10,7 +10,7 @@ import { RootState } from '../store';
 export const knowledgeApi = createApi({
   reducerPath: 'knowledgeApi',
   baseQuery: fetchBaseQuery({ 
-    baseUrl: 'http://localhost:8080',
+    baseUrl: 'https://smartfarm-server.onrender.com',
     credentials: 'include',
     prepareHeaders: (headers, { getState }) => {
       // Get token from auth state

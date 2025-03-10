@@ -5,7 +5,7 @@ import { LoginCredentials, RegisterCredentials, AuthResponse } from "../../types
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
-    baseUrl: 'http://localhost:8080',
+    baseUrl: 'https://smartfarm-server.onrender.com',
     prepareHeaders: (headers, { getState }) => {
       const token = (getState() as any).auth.token;
       if (token) {

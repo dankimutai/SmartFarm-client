@@ -1,5 +1,5 @@
-// pages/marketplace/ListingDetails.tsx
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import  { useState } from 'react';
+import { useParams, useNavigate, useLocation} from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import {
   RiMapPinLine,
@@ -10,11 +10,15 @@ import {
   RiArrowLeftLine,
 } from 'react-icons/ri';
 import { marketplaceApi } from '../../store/api/marketPlaceApi';
+import { ordersApi } from '../../store/api/ordersApi';
 import { addToCart } from '../../store/slices/cart.slice';
 import { toast } from 'react-hot-toast';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
+import PaymentModal from '../payments/paymentModal';
 import type { RootState } from '../../store/store';
 import Farm1 from '../../assets/farm-4.jpg';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
+import { Button } from '../../components/common/Button';
 
 const ListingDetails = () => {
   const { id } = useParams();
@@ -22,11 +26,19 @@ const ListingDetails = () => {
   const location = useLocation();
   const dispatch = useDispatch();
   const { data: response, isLoading } = marketplaceApi.useGetListingByIdQuery(Number(id));
-  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const [createOrder] = ordersApi.useCreateOrderMutation();
+  const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
+
+  // State for order quantity and payment
+  const [orderQuantity, setOrderQuantity] = useState<number>(1);
+  const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
+  const [orderProcessing, setOrderProcessing] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [orderId, setOrderId] = useState<number | null>(null);
+  const [orderAmount, setOrderAmount] = useState<number>(0);
 
   const listing = response?.data;
   const isBuyerDashboard = location.pathname.startsWith('/buyer');
-  console.log(listing)
 
   const handleAddToCart = () => {
     if (!isAuthenticated) {
@@ -56,8 +68,61 @@ const ListingDetails = () => {
 
     if (!listing) return;
 
-    handleAddToCart();
-    navigate(isBuyerDashboard ? '/buyer/orders' : '/orders');
+    setOrderQuantity(1);
+    setIsOrderDialogOpen(true);
+  };
+
+  // Handle order submission
+  const handlePlaceOrder = async () => {
+    if (!listing || !user || !user.buyerId) {
+      toast.error('User profile is incomplete. Please update your buyer profile first.');
+      return;
+    }
+
+    try {
+      setOrderProcessing(true);
+
+      // Calculate the total price based on quantity and item price
+      const totalPrice = orderQuantity * parseFloat(listing.price);
+
+      const orderData = {
+        buyerId: parseInt(user.buyerId.toString()),
+        listingId: listing.id,
+        quantity: orderQuantity,
+        totalPrice: totalPrice,
+      };
+
+      console.log('Sending order data:', orderData);
+
+      const result = await createOrder(orderData).unwrap();
+
+      toast.success('Order created! Proceed to payment.');
+      setIsOrderDialogOpen(false);
+
+      // Set the order ID and amount for payment
+      setOrderId(result.data.id);
+      setOrderAmount(totalPrice);
+      
+      // Open the payment modal
+      setIsPaymentModalOpen(true);
+
+    } catch (error) {
+      console.error('Order failed', error);
+      toast.error('Failed to place order. Please try again.');
+    } finally {
+      setOrderProcessing(false);
+    }
+  };
+
+  // Handle payment success
+  const handlePaymentSuccess = (transactionId: number) => {
+    console.log('Payment successful, transaction ID:', transactionId);
+    // Close the payment modal after a short delay
+    setTimeout(() => {
+      setIsPaymentModalOpen(false);
+      // Redirect to orders page
+      navigate(isBuyerDashboard ? '/buyer/orders' : '/orders');
+    }, 2000);
   };
 
   if (isLoading) {
@@ -208,6 +273,106 @@ const ListingDetails = () => {
           </div>
         </div>
       </div>
+
+      {/* Order Dialog */}
+      <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirm Your Order</DialogTitle>
+          </DialogHeader>
+
+          {listing && (
+            <div className="py-4">
+              <div className="mb-4">
+                <h3 className="font-medium text-lg">{listing.product.name}</h3>
+                <p className="text-gray-600">
+                  KES {parseFloat(listing.price).toLocaleString()} per{' '}
+                  {listing.product.unit}
+                </p>
+              </div>
+
+              <div className="mb-4">
+                <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
+                  Quantity ({listing.product.unit})
+                </label>
+                <div className="flex items-center">
+                  <button
+                    className="p-2 bg-gray-200 rounded-l-md"
+                    onClick={() => setOrderQuantity(Math.max(1, orderQuantity - 1))}
+                    type="button"
+                  >
+                    -
+                  </button>
+                  <input
+                    id="quantity"
+                    type="number"
+                    value={orderQuantity}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      const maxQuantity = parseFloat(listing.quantity);
+                      if (value > 0 && value <= maxQuantity) {
+                        setOrderQuantity(value);
+                      }
+                    }}
+                    min="1"
+                    max={parseFloat(listing.quantity)}
+                    className="p-2 w-20 text-center border-t border-b"
+                  />
+                  <button
+                    className="p-2 bg-gray-200 rounded-r-md"
+                    onClick={() => setOrderQuantity(Math.min(parseFloat(listing.quantity), orderQuantity + 1))}
+                    type="button"
+                  >
+                    +
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Available: {parseFloat(listing.quantity).toLocaleString()} {listing.product.unit}
+                </p>
+              </div>
+
+              <div className="bg-gray-50 p-3 rounded-md mb-4">
+                <div className="flex justify-between mb-2">
+                  <span>Subtotal:</span>
+                  <span>
+                    KES {(parseFloat(listing.price) * orderQuantity).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between font-bold text-lg">
+                  <span>Total:</span>
+                  <span>
+                    KES {(parseFloat(listing.price) * orderQuantity).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsOrderDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handlePlaceOrder}
+              disabled={orderProcessing || !listing}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {orderProcessing ? 'Processing...' : 'Place Order'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Modal */}
+      {orderId && orderAmount > 0 && (
+        <PaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          orderId={orderId}
+          amount={orderAmount}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
     </div>
   );
 };

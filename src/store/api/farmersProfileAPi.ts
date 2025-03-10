@@ -27,7 +27,7 @@ export interface UpdateFarmerPayload {
 export const farmersApi = createApi({
   reducerPath: 'farmersApi',
   baseQuery: fetchBaseQuery({ 
-    baseUrl: 'http://localhost:8080', // Update with your actual API base URL
+    baseUrl: 'https://smartfarm-server.onrender.com', // Update with your actual API base URL
     prepareHeaders: (headers) => {
       // Add any required headers here
       return headers;

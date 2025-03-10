@@ -4,7 +4,7 @@ import type { ListingsResponse, ListingsQueryParams,SingleListingResponse } from
 export const marketplaceApi = createApi({
   reducerPath: 'marketplaceApi',
   baseQuery: fetchBaseQuery({ 
-    baseUrl: 'http://localhost:8080'
+    baseUrl: 'https://smartfarm-server.onrender.com'
   }),
   endpoints: (builder) => ({
     getListings: builder.query<ListingsResponse, ListingsQueryParams | void>({
