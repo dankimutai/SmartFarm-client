@@ -30,6 +30,9 @@ import FarmerProfile from './pages/farmer/Profile';
 import FarmerSettings from './pages/farmer/Settings';
 import FarmerCrops from './pages/farmer/CropManagement';
 import FarmerDashboardLayout from './Layouts/FarmerDashboardLayout';
+import FarmerTransactionsPage from './pages/farmer/FarmerTransactionsPage';
+import FarmerTransactionDetailsPage from './pages/farmer/FarmerTransactionDetailsPage';
+
 
 //Buyer imports
 import BuyerDashboardLayout from './Layouts/BuyerDashBoardLayout';
@@ -180,6 +183,14 @@ const router = createBrowserRouter([
           {
             path: 'orders',
             element: <FarmerOrders />,
+          },
+          {
+            path: 'transactions',
+            element: <FarmerTransactionsPage />,
+          },
+          {
+            path: 'transactions/:id',
+            element: <FarmerTransactionDetailsPage />,
           },
           {
             path: 'analytics',

@@ -12,7 +12,8 @@ import {
   BarChart2,
   User,
   MessageSquare,
-  ArrowLeft
+  ArrowLeft,
+  CreditCard
 } from 'lucide-react';
 import { RiPlantLine } from 'react-icons/ri';
 import { useSelector } from 'react-redux';
@@ -23,6 +24,7 @@ const navItems = [
   { name: 'Crops', path: '/farmer/crops', icon: <Leaf className="w-5 h-5" /> },
   { name: 'Products', path: '/farmer/products', icon: <Package className="w-5 h-5" /> },
   { name: 'Orders', path: '/farmer/orders', icon: <ShoppingBag className="w-5 h-5" /> },
+  { name: 'Transactions', path: '/farmer/transactions', icon: <CreditCard className="w-5 h-5" /> },
   { name: 'Analytics', path: '/farmer/analytics', icon: <BarChart2 className="w-5 h-5" /> },
   { name: 'Messages', path: '/farmer/messages', icon: <MessageSquare className="w-5 h-5" /> },
   { name: 'Profile', path: '/farmer/profile', icon: <User className="w-5 h-5" /> },
