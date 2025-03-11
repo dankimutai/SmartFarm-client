@@ -51,6 +51,10 @@ import ListingDetails from './pages/marketplace/ListingDetails';
 import OrderDetails from './pages/orders/OrderDetails';
 import OrderTracking from './pages/orders/OrderTracking';
 
+// Transaction Pages imports
+import TransactionsPage from './pages/buyer/TransactionsPage';
+import TransactionsDetails from './pages/buyer/TransactionsDetails';
+
 const router = createBrowserRouter([
   {
     path: '/',
@@ -248,7 +252,15 @@ const router = createBrowserRouter([
           {
             path: 'track-order/:orderId',
             element: <OrderTracking/>
-
+          },
+          // Added Transaction Routes
+          {
+            path: 'transactions',
+            element: <TransactionsPage />
+          },
+          {
+            path: 'transactions/:id',
+            element: <TransactionsDetails />
           }
         ],
       },

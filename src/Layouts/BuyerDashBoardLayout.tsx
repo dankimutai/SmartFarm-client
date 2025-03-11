@@ -14,7 +14,8 @@ import {
   MessageSquare,
   ArrowLeft,
   Truck,
-  ShoppingCart
+  ShoppingCart,
+  CreditCard
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store/store';
@@ -24,6 +25,7 @@ const navItems = [
   { name: 'Marketplace', path: '/buyer/marketplace', icon: <ShoppingBag className="w-5 h-5" /> },
   { name: 'Orders', path: '/buyer/orders', icon: <Package className="w-5 h-5" /> },
   { name: 'Track Orders', path: '/buyer/track', icon: <Truck className="w-5 h-5" /> },
+  { name: 'Transactions', path: '/buyer/transactions', icon: <CreditCard className="w-5 h-5" /> },
   { name: 'Purchase History', path: '/buyer/history', icon: <History className="w-5 h-5" /> },
   { name: 'Analytics', path: '/buyer/analytics', icon: <BarChart2 className="w-5 h-5" /> },
   { name: 'Messages', path: '/buyer/messages', icon: <MessageSquare className="w-5 h-5" /> },

@@ -39,6 +39,64 @@ export interface TransactionStatus {
   };
 }
 
+export interface TransactionDetails {
+  success: boolean;
+  data: Transaction & {
+    order: {
+      id: number;
+      buyerId: number;
+      listingId: number;
+      quantity: string;
+      totalPrice: string;
+      orderStatus: string;
+      paymentStatus: string;
+      createdAt: string;
+      updatedAt: string;
+      listing: {
+        id: number;
+        product: {
+          id: number;
+          name: string;
+          category: string;
+          unit: string;
+          imageUrl?: string;
+        };
+        farmer: {
+          id: number;
+          user: {
+            id: number;
+            name: string;
+            email: string;
+            phoneNumber: string;
+          };
+        };
+      };
+      buyer: {
+        id: number;
+        userId: number;
+        companyName?: string;
+        businessType?: string;
+        user: {
+          id: number;
+          name: string;
+          email: string;
+          phoneNumber: string;
+        };
+      };
+    };
+  };
+}
+
+export interface TransactionStats {
+  success: boolean;
+  data: {
+    totalTransactions: number;
+    totalPaid: string;
+    totalPending: string;
+    totalFailed: string;
+  };
+}
+
 export interface InitiatePaymentRequest {
   orderId: number;
   phoneNumber: string;  // Must be in format 254XXXXXXXXX
@@ -81,7 +139,7 @@ export const paymentApi = createApi({
       return headers;
     },
   }),
-  tagTypes: ['Transactions', 'OrderTransactions'],
+  tagTypes: ['Transactions', 'OrderTransactions', 'UserTransactions'],
   endpoints: (builder) => ({
     // Initiate M-Pesa payment
     initiatePayment: builder.mutation<InitiatePaymentResponse, InitiatePaymentRequest>({
@@ -94,7 +152,8 @@ export const paymentApi = createApi({
         result?.success 
           ? [
               { type: 'Transactions' },
-              { type: 'OrderTransactions', id: result.data.transactionId }
+              { type: 'OrderTransactions', id: result.data.transactionId },
+              { type: 'UserTransactions' }
             ]
           : [],
     }),
@@ -135,5 +194,30 @@ export const paymentApi = createApi({
             ]
           : [{ type: 'Transactions', id: 'LIST' }],
     }),
+
+    // Get transactions for a specific user
+    getUserTransactions: builder.query<TransactionsResponse, number>({
+      query: (userId) => `/transactions/user/${userId}`,
+      providesTags: (result) => 
+        result?.data
+          ? [
+              ...result.data.map(({ id }) => ({ type: 'UserTransactions' as const, id })),
+              { type: 'UserTransactions', id: 'LIST' },
+            ]
+          : [{ type: 'UserTransactions', id: 'LIST' }],
+    }),
+
+    // Get detailed information for a specific transaction
+    getTransactionDetails: builder.query<TransactionDetails, { id: number; userId: number }>({
+      query: ({ id, userId }) => `/transaction/details/${id}/${userId}`,
+      providesTags: (_, __, args) => [{ type: 'OrderTransactions', id: args.id }],
+    }),
+
+    // Get transaction statistics for a user
+    getUserTransactionStats: builder.query<TransactionStats, number>({
+      query: (userId) => `/transactions/stats/${userId}`,
+      providesTags: [{ type: 'UserTransactions', id: 'STATS' }],
+    }),
   }),
 });
+
