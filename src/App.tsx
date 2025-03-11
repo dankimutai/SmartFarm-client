@@ -54,6 +54,8 @@ import OrderTracking from './pages/orders/OrderTracking';
 // Transaction Pages imports
 import TransactionsPage from './pages/buyer/TransactionsPage';
 import TransactionsDetails from './pages/buyer/TransactionsDetails';
+import AdminTransactionsPage from './pages/admin/AdminTransactions';
+import AdminTransactionDetailsPage from './pages/admin/AdminTransactionDetailsPage';
 
 const router = createBrowserRouter([
   {
@@ -136,6 +138,14 @@ const router = createBrowserRouter([
           {
             path: 'orders',
             element: <OrdersManagement />,
+          },
+          {
+            path: 'transactions',
+            element: <AdminTransactionsPage />,
+          },
+          {
+            path: 'transactions/:id',
+            element: <AdminTransactionDetailsPage />,
           },
           {
             path: 'settings',

@@ -11,6 +11,8 @@ import {
   X,
   ArrowLeft,
   User,
+  CreditCard,
+  BarChart2
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store/store';
@@ -27,6 +29,8 @@ const navItems: NavItem[] = [
   { name: 'Users', path: '/admin/users', icon: <Users className="w-5 h-5" /> },
   { name: 'Products', path: '/admin/products', icon: <Package className="w-5 h-5" /> },
   { name: 'Orders', path: '/admin/orders', icon: <ShoppingBag className="w-5 h-5" /> },
+  { name: 'Transactions', path: '/admin/transactions', icon: <CreditCard className="w-5 h-5" /> },
+  { name: 'Analytics', path: '/admin/analytics', icon: <BarChart2 className="w-5 h-5" /> },
   { name: 'Settings', path: '/admin/settings', icon: <Settings className="w-5 h-5" /> },
 ];
 
@@ -78,7 +82,8 @@ export const DashboardLayout = () => {
                 className={`
                   flex items-center px-4 py-2 rounded-lg text-sm
                   ${
-                    location.pathname === item.path
+                    location.pathname === item.path || 
+                    (item.path.includes('/admin/transactions') && location.pathname.includes('/admin/transactions'))
                       ? 'bg-emerald-50 text-emerald-600'
                       : 'text-gray-600 hover:bg-gray-50'
                   }
