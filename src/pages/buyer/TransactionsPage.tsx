@@ -1,4 +1,4 @@
-import  { useState} from 'react';
+import { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store/store';
 import { paymentApi } from '../../store/api/paymentApi';
@@ -10,7 +10,8 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
-  Download
+  Download,
+  FileText
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -18,6 +19,9 @@ const TransactionsPage = () => {
   const userId = useSelector((state: RootState) => state.auth.user?.id);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
+  const [showExportOptions, setShowExportOptions] = useState(false);
   const pageSize = 10;
 
   // Fetch user transactions
@@ -33,7 +37,8 @@ const TransactionsPage = () => {
   // Fetch transaction statistics
   const {
     data: statsData,
-    isLoading: isLoadingStats  } = paymentApi.useGetUserTransactionStatsQuery(userId || 0, {
+    isLoading: isLoadingStats
+  } = paymentApi.useGetUserTransactionStatsQuery(userId || 0, {
     skip: !userId
   });
 
@@ -89,6 +94,98 @@ const TransactionsPage = () => {
   // Format date
   const formatDate = (dateString: string) => {
     return format(new Date(dateString), 'MMM dd, yyyy HH:mm');
+  };
+
+  // Export transactions as CSV
+  const exportTransactionsCSV = () => {
+    setIsExporting(true);
+    
+    try {
+      // Create CSV content
+      const headers = ['Transaction ID', 'Order ID', 'Amount', 'Method', 'Status', 'Date'];
+      const csvContent = [
+        headers.join(','),
+        ...filteredTransactions.map(transaction => [
+          transaction.id,
+          transaction.orderId,
+          formatAmount(transaction.amount),
+          transaction.paymentMethod,
+          transaction.status,
+          formatDate(transaction.createdAt)
+        ].join(','))
+      ].join('\n');
+      
+      // Create Blob and download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `smartfarm-transactions-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error exporting transactions:', error);
+      alert('Failed to export transactions. Please try again.');
+    } finally {
+      setIsExporting(false);
+      setShowExportOptions(false);
+    }
+  };
+
+  // Export transactions as PDF
+  const exportTransactionsPDF = () => {
+    setIsExporting(true);
+    
+    try {
+      // Create simple text content for PDF
+      const content = `
+SmartFarm Transactions
+Generated on: ${format(new Date(), 'MMMM dd, yyyy')}
+User: ${userId}
+
+Transaction Summary:
+- Total Transactions: ${statsData?.data?.totalTransactions || 0}
+- Total Paid: KES ${statsData?.data?.totalPaid || "0.00"}
+- Total Pending: KES ${statsData?.data?.totalPending || "0.00"}
+- Total Failed: KES ${statsData?.data?.totalFailed || "0.00"}
+
+Transaction History:
+${filteredTransactions.map(transaction => `
+ID: #${transaction.id}
+Order: #${transaction.orderId}
+Amount: ${formatAmount(transaction.amount)}
+Method: ${transaction.paymentMethod}
+Status: ${transaction.status}
+Date: ${formatDate(transaction.createdAt)}
+`).join('\n-------------------\n')}
+      `;
+      
+      // Create PDF and download
+      const blob = new Blob([content], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `smartfarm-transactions-${format(new Date(), 'yyyy-MM-dd')}.txt`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error exporting transactions:', error);
+      alert('Failed to export transactions. Please try again.');
+    } finally {
+      setIsExporting(false);
+      setShowExportOptions(false);
+    }
+  };
+
+  // Handle export button click
+  const handleExport = () => {
+    if (exportFormat === 'csv') {
+      exportTransactionsCSV();
+    } else {
+      exportTransactionsPDF();
+    }
   };
 
   if (!userId) {
@@ -203,9 +300,73 @@ const TransactionsPage = () => {
                 />
                 <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
               </div>
-              <button className="ml-4 bg-blue-50 text-blue-600 p-2 rounded-lg hover:bg-blue-100">
-                <Download className="w-5 h-5" />
-              </button>
+              
+              {/* Export Button with Dropdown */}
+              <div className="relative ml-4">
+                <button 
+                  className="bg-blue-50 text-blue-600 p-2 rounded-lg hover:bg-blue-100 flex items-center"
+                  onClick={() => setShowExportOptions(!showExportOptions)}
+                  disabled={isLoadingTransactions || filteredTransactions.length === 0}
+                >
+                  <Download className="w-5 h-5 mr-2" />
+                  <span>Export</span>
+                </button>
+                
+                {showExportOptions && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg z-10 border">
+                    <div className="p-2">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Export Format</p>
+                      <div className="space-y-2">
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="exportFormat"
+                            checked={exportFormat === 'csv'}
+                            onChange={() => setExportFormat('csv')}
+                            className="form-radio text-blue-600"
+                          />
+                          <span className="text-sm text-gray-700">CSV (.csv)</span>
+                        </label>
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="exportFormat"
+                            checked={exportFormat === 'pdf'}
+                            onChange={() => setExportFormat('pdf')}
+                            className="form-radio text-blue-600"
+                          />
+                          <span className="text-sm text-gray-700">Text File (.txt)</span>
+                        </label>
+                      </div>
+                      <div className="mt-3 flex justify-end space-x-2">
+                        <button
+                          onClick={() => setShowExportOptions(false)}
+                          className="px-3 py-1 text-xs text-gray-600 hover:text-gray-800"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleExport}
+                          disabled={isExporting}
+                          className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center"
+                        >
+                          {isExporting ? (
+                            <>
+                              <div className="animate-spin h-3 w-3 border-2 border-white border-opacity-20 rounded-full border-t-opacity-90 mr-1"></div>
+                              <span>Exporting...</span>
+                            </>
+                          ) : (
+                            <>
+                              <FileText className="w-3 h-3 mr-1" />
+                              <span>Export</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

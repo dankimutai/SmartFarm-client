@@ -1,5 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import { useState } from 'react';
 import { RootState } from '../../store/store';
 import { paymentApi } from '../../store/api/paymentApi';
 import { 
@@ -11,12 +12,17 @@ import {
   ShoppingBag,
   User,
   Package,
+  FileText,
+  Printer,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
 const TransactionDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
   const userId = useSelector((state: RootState) => state.auth.user?.id);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [showReceiptOptions, setShowReceiptOptions] = useState(false);
+  const [receiptFormat, setReceiptFormat] = useState<'pdf' | 'html'>('pdf');
 
   const { 
     data: transactionDetails, 
@@ -37,6 +43,8 @@ const TransactionDetailsPage = () => {
   const formatDate = (dateString: string) => {
     return format(new Date(dateString), 'MMMM dd, yyyy HH:mm:ss');
   };
+
+
 
   // Get status color
   const getStatusColor = (status: string) => {
@@ -63,6 +71,353 @@ const TransactionDetailsPage = () => {
         return <AlertCircle className="w-5 h-5" />;
       default:
         return null;
+    }
+  };
+
+  // Generate HTML receipt
+  const generateHtmlReceipt = (transaction: any, orderData: any, productData: any, farmerData: any, metadata: any) => {
+    const receiptDate = format(new Date(), 'MMMM dd, yyyy HH:mm:ss');
+    const transactionDate = formatDate(transaction.createdAt);
+    
+    return `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Transaction Receipt - #${transaction.id}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 20px;
+          }
+          .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2563eb;
+            margin-bottom: 5px;
+          }
+          .receipt-title {
+            font-size: 18px;
+            margin-bottom: 5px;
+          }
+          .receipt-date {
+            color: #666;
+            font-size: 14px;
+          }
+          .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 10px 0;
+          }
+          .status-paid {
+            background-color: #d1fae5;
+            color: #065f46;
+          }
+          .status-pending {
+            background-color: #fef3c7;
+            color: #92400e;
+          }
+          .status-failed {
+            background-color: #fee2e2;
+            color: #b91c1c;
+          }
+          .section {
+            margin-bottom: 25px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            padding: 15px;
+          }
+          .section-title {
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #eee;
+          }
+          .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+          }
+          .item {
+            margin-bottom: 10px;
+          }
+          .label {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 3px;
+          }
+          .value {
+            font-weight: bold;
+          }
+          .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 14px;
+            color: #666;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+          }
+          .total {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 15px 0;
+          }
+          .note {
+            font-style: italic;
+            margin-top: 20px;
+            font-size: 14px;
+          }
+          @media print {
+            body {
+              padding: 0;
+              margin: 0;
+            }
+            .no-print {
+              display: none;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="logo">SmartFarm</div>
+          <div class="receipt-title">PAYMENT RECEIPT</div>
+          <div class="receipt-date">Generated on: ${receiptDate}</div>
+          <div class="status status-${transaction.status}">${transaction.status.toUpperCase()}</div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">Transaction Details</div>
+          <div class="grid">
+            <div class="item">
+              <div class="label">Transaction ID</div>
+              <div class="value">#${transaction.id}</div>
+            </div>
+            <div class="item">
+              <div class="label">Date</div>
+              <div class="value">${transactionDate}</div>
+            </div>
+            <div class="item">
+              <div class="label">Payment Method</div>
+              <div class="value">${transaction.paymentMethod.toUpperCase()}</div>
+            </div>
+            <div class="item">
+              <div class="label">Amount</div>
+              <div class="value">${formatAmount(transaction.amount)}</div>
+            </div>
+            <div class="item">
+              <div class="label">Status</div>
+              <div class="value">${transaction.status.toUpperCase()}</div>
+            </div>
+            <div class="item">
+              <div class="label">Order ID</div>
+              <div class="value">#${orderData.id}</div>
+            </div>
+            ${transaction.providerTransactionId ? `
+            <div class="item">
+              <div class="label">Provider Transaction ID</div>
+              <div class="value">${transaction.providerTransactionId}</div>
+            </div>` : ''}
+            ${metadata?.mpesaReceipt ? `
+            <div class="item">
+              <div class="label">M-Pesa Receipt</div>
+              <div class="value">${metadata.mpesaReceipt}</div>
+            </div>` : ''}
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">Product Information</div>
+          <div class="grid">
+            <div class="item">
+              <div class="label">Product</div>
+              <div class="value">${productData.name}</div>
+            </div>
+            <div class="item">
+              <div class="label">Category</div>
+              <div class="value">${productData.category}</div>
+            </div>
+            <div class="item">
+              <div class="label">Quantity</div>
+              <div class="value">${orderData.quantity} ${productData.unit}</div>
+            </div>
+            <div class="item">
+              <div class="label">Price per Unit</div>
+              <div class="value">KES ${(parseFloat(orderData.totalPrice) / parseFloat(orderData.quantity)).toFixed(2)}</div>
+            </div>
+          </div>
+          <div class="total">Total: ${formatAmount(orderData.totalPrice)}</div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">Seller Information</div>
+          <div class="grid">
+            <div class="item">
+              <div class="label">Seller Name</div>
+              <div class="value">${farmerData.user.name}</div>
+            </div>
+            <div class="item">
+              <div class="label">Contact</div>
+              <div class="value">${farmerData.user.phoneNumber}</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="note">
+          This is an electronically generated receipt. No signature is required.
+        </div>
+        
+        <div class="footer">
+          <p>Thank you for shopping with SmartFarm!</p>
+          <p>&copy; ${new Date().getFullYear()} SmartFarm. All rights reserved.</p>
+        </div>
+        
+        <div class="no-print" style="margin-top: 30px; text-align: center;">
+          <button onclick="window.print()" style="padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer;">Print Receipt</button>
+        </div>
+      </body>
+      </html>
+    `;
+  };
+
+  // Generate text receipt
+  const generateTextReceipt = (transaction: any, orderData: any, productData: any, farmerData: any, metadata: any) => {
+    const receiptDate = format(new Date(), 'MMMM dd, yyyy HH:mm:ss');
+    const transactionDate = formatDate(transaction.createdAt);
+    
+    return `
+===========================================
+              SMARTFARM
+         TRANSACTION RECEIPT
+===========================================
+Generated: ${receiptDate}
+Status: ${transaction.status.toUpperCase()}
+
+TRANSACTION DETAILS
+-------------------------------------------
+Transaction ID: #${transaction.id}
+Date: ${transactionDate}
+Payment Method: ${transaction.paymentMethod.toUpperCase()}
+Amount: ${formatAmount(transaction.amount)}
+Status: ${transaction.status.toUpperCase()}
+Order ID: #${orderData.id}
+${transaction.providerTransactionId ? `Provider Transaction ID: ${transaction.providerTransactionId}` : ''}
+${metadata?.mpesaReceipt ? `M-Pesa Receipt: ${metadata.mpesaReceipt}` : ''}
+
+PRODUCT INFORMATION
+-------------------------------------------
+Product: ${productData.name}
+Category: ${productData.category}
+Quantity: ${orderData.quantity} ${productData.unit}
+Price per Unit: KES ${(parseFloat(orderData.totalPrice) / parseFloat(orderData.quantity)).toFixed(2)}
+TOTAL: ${formatAmount(orderData.totalPrice)}
+
+SELLER INFORMATION
+-------------------------------------------
+Seller Name: ${farmerData.user.name}
+Contact: ${farmerData.user.phoneNumber}
+
+-------------------------------------------
+This is an electronically generated receipt.
+No signature is required.
+
+Thank you for shopping with SmartFarm!
+© ${new Date().getFullYear()} SmartFarm. All rights reserved.
+===========================================
+    `;
+  };
+
+  // Download receipt 
+  const downloadReceipt = () => {
+    if (!transactionDetails) return;
+    
+    setIsDownloading(true);
+    try {
+      const transaction = transactionDetails.data;
+      const orderData = transaction.order;
+      const productData = orderData.listing.product;
+      const farmerData = orderData.listing.farmer;
+      const metadata = transaction.metadata;
+      
+      // Generate receipt based on selected format
+      let content = '';
+      let filename = '';
+      let type = '';
+      
+      if (receiptFormat === 'html') {
+        content = generateHtmlReceipt(transaction, orderData, productData, farmerData, metadata);
+        filename = `smartfarm-receipt-${transaction.id}.html`;
+        type = 'text/html';
+      } else {
+        content = generateTextReceipt(transaction, orderData, productData, farmerData, metadata);
+        filename = `smartfarm-receipt-${transaction.id}.txt`;
+        type = 'text/plain';
+      }
+      
+      // Create and download the file
+      const blob = new Blob([content], { type: `${type};charset=utf-8;` });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error generating receipt:', error);
+      alert('Failed to generate receipt. Please try again.');
+    } finally {
+      setIsDownloading(false);
+      setShowReceiptOptions(false);
+    }
+  };
+
+  // Print receipt
+  const printReceipt = () => {
+    if (!transactionDetails) return;
+    
+    try {
+      const transaction = transactionDetails.data;
+      const orderData = transaction.order;
+      const productData = orderData.listing.product;
+      const farmerData = orderData.listing.farmer;
+      const metadata = transaction.metadata;
+      
+      // Generate HTML receipt and open in new window
+      const content = generateHtmlReceipt(transaction, orderData, productData, farmerData, metadata);
+      
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(content);
+        printWindow.document.close();
+        printWindow.focus();
+        
+        // Add a slight delay before printing to ensure the content is fully loaded
+        setTimeout(() => {
+          printWindow.print();
+        }, 500);
+      } else {
+        alert('Please allow pop-ups to print the receipt.');
+      }
+    } catch (error) {
+      console.error('Error printing receipt:', error);
+      alert('Failed to print receipt. Please try again.');
+    } finally {
+      setShowReceiptOptions(false);
     }
   };
 
@@ -115,11 +470,75 @@ const TransactionDetailsPage = () => {
           <h1 className="text-2xl font-bold text-gray-800">Transaction Details</h1>
           <p className="text-gray-600">Transaction #{transaction.id}</p>
         </div>
-        <div className="mt-4 md:mt-0">
-          <button className="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-100 inline-flex items-center">
+        <div className="mt-4 md:mt-0 relative">
+          <button 
+            className="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-100 inline-flex items-center"
+            onClick={() => setShowReceiptOptions(!showReceiptOptions)}
+            disabled={transaction.status !== 'paid'}
+          >
             <Download className="w-4 h-4 mr-2" />
-            Download Receipt
+            {transaction.status === 'paid' ? 'Receipt Options' : 'No Receipt Available'}
           </button>
+          
+          {showReceiptOptions && transaction.status === 'paid' && (
+            <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg z-10 border">
+              <div className="p-3">
+                <p className="text-sm font-medium text-gray-700 mb-2">Receipt Options</p>
+                
+                <button
+                  onClick={downloadReceipt}
+                  disabled={isDownloading}
+                  className="w-full mb-2 px-3 py-2 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100 flex items-center"
+                >
+                  {isDownloading ? (
+                    <>
+                      <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-opacity-20 rounded-full border-t-opacity-90 mr-2"></div>
+                      <span>Downloading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="w-4 h-4 mr-2" />
+                      <span>Download Receipt</span>
+                    </>
+                  )}
+                </button>
+                
+                <button
+                  onClick={printReceipt}
+                  className="w-full px-3 py-2 text-sm bg-gray-50 text-gray-600 rounded hover:bg-gray-100 flex items-center"
+                >
+                  <Printer className="w-4 h-4 mr-2" />
+                  <span>Print Receipt</span>
+                </button>
+                
+                <div className="mt-3 pt-3 border-t">
+                  <p className="text-xs text-gray-500 mb-2">Download Format</p>
+                  <div className="flex space-x-2">
+                    <label className="flex items-center space-x-1 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="receiptFormat"
+                        checked={receiptFormat === 'pdf'}
+                        onChange={() => setReceiptFormat('pdf')}
+                        className="form-radio text-blue-600"
+                      />
+                      <span className="text-xs text-gray-700">Text</span>
+                    </label>
+                    <label className="flex items-center space-x-1 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="receiptFormat"
+                        checked={receiptFormat === 'html'}
+                        onChange={() => setReceiptFormat('html')}
+                        className="form-radio text-blue-600"
+                      />
+                      <span className="text-xs text-gray-700">HTML</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
