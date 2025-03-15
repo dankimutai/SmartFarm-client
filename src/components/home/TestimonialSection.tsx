@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import David from '../../assets/David Kimani.jpg';
 import Mary from '../../assets/Mary Wanjiku.jpg';
-import Sarah from '../../assets/Sarah Johnson.jpg';
+import Sarah from '../../assets/sarah johnson.jpg';
 
 interface Testimonial {
   id: number;
