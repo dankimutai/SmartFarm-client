@@ -2,6 +2,7 @@
 
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import type { RootState } from '../store';
+import { prod } from '../../utils/utils';
 
 // Types
 interface Farmer {
@@ -94,7 +95,7 @@ interface CreateOrderRequest {
 export const ordersApi = createApi({
   reducerPath: 'ordersApi',
   baseQuery: fetchBaseQuery({ 
-    baseUrl: 'https://smartfarm-server.onrender.com',
+    baseUrl: prod,
     prepareHeaders: (headers, { getState }) => {
       const token = (getState() as RootState).auth.token;
       if (token) {

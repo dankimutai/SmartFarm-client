@@ -1,10 +1,11 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import type { ListingsResponse, ListingsQueryParams,SingleListingResponse } from '../../types/marketplace.types';
+import { prod } from '../../utils/utils';
 
 export const marketplaceApi = createApi({
   reducerPath: 'marketplaceApi',
   baseQuery: fetchBaseQuery({ 
-    baseUrl: 'https://smartfarm-server.onrender.com'
+    baseUrl:prod,
   }),
   endpoints: (builder) => ({
     getListings: builder.query<ListingsResponse, ListingsQueryParams | void>({

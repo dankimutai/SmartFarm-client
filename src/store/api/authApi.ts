@@ -1,11 +1,12 @@
 // src/store/api/authApi.ts
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { LoginCredentials, RegisterCredentials, AuthResponse } from "../../types/auth.types";
+import { prod } from '../../utils/utils';
 
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
-    baseUrl: 'https://smartfarm-server.onrender.com',
+    baseUrl: prod,
     prepareHeaders: (headers, { getState }) => {
       const token = (getState() as any).auth.token;
       if (token) {

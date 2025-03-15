@@ -6,11 +6,12 @@ import type {
   SinglePostResponse 
 } from '../../types/knowledge.types';
 import { RootState } from '../store';
+import { prod } from '../../utils/utils';
 
 export const knowledgeApi = createApi({
   reducerPath: 'knowledgeApi',
   baseQuery: fetchBaseQuery({ 
-    baseUrl: 'https://smartfarm-server.onrender.com',
+    baseUrl: prod,
     credentials: 'include',
     prepareHeaders: (headers, { getState }) => {
       // Get token from auth state

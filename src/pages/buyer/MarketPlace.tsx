@@ -51,6 +51,7 @@ const BuyerMarketplace = () => {
   const [currentListing, setCurrentListing] = useState<Listing | null>(null);
   const [orderQuantity, setOrderQuantity] = useState<number>(1);
   const [orderProcessing, setOrderProcessing] = useState(false);
+  const [orderError, setOrderError] = useState<string | null>(null);
   
   // Payment modal states
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -78,6 +79,13 @@ const BuyerMarketplace = () => {
     return () => clearTimeout(timer);
   }, [searchTerm, selectedCategory, selectedLocation, sortBy, priceRange]);
 
+  // Reset error when order dialog opens or closes
+  useEffect(() => {
+    if (!isOrderDialogOpen) {
+      setOrderError(null);
+    }
+  }, [isOrderDialogOpen]);
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -94,6 +102,7 @@ const BuyerMarketplace = () => {
     
     setCurrentListing(listing);
     setOrderQuantity(1);
+    setOrderError(null);
     setIsOrderDialogOpen(true);
   };
 
@@ -102,6 +111,7 @@ const BuyerMarketplace = () => {
     
     try {
       setOrderProcessing(true);
+      setOrderError(null);
       
       // Calculate total price - use parseFloat to convert string to number
       const totalPrice = orderQuantity * parseFloat(currentListing.price.toString());
@@ -117,22 +127,49 @@ const BuyerMarketplace = () => {
       
       const response = await createOrder(orderData).unwrap();
       
-      // Close the order dialog
-      setIsOrderDialogOpen(false);
-      
-      // Set order data for payment
       if (response.success && response.data) {
+        // Close the order dialog
+        setIsOrderDialogOpen(false);
+        
+        // Set order data for payment
         setOrderId(response.data.id);
         setOrderTotal(totalPrice);
         
         // Open payment modal
         setIsPaymentModalOpen(true);
+        
+        toast.success('Order placed successfully!');
       } else {
-        toast.error('Failed to place order. Please try again.');
+        // TypeScript-safe way to handle API success: false response
+        // Use type assertion or optional chaining with fallback
+        const errorMessage = response.success === false && 'message' in response
+          ? (response as any).message || 'Failed to place order'
+          : 'Failed to place order. Please try again.';
+        
+        setOrderError(errorMessage);
+        toast.error(errorMessage);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to place order:', error);
-      toast.error('Failed to place order. Please try again.');
+      
+      // Extract error message from different possible error structures
+      let errorMessage = 'Failed to place order. Please try again.';
+      
+      if (error.data) {
+        if (typeof error.data === 'object' && error.data !== null) {
+          // Check for common error message properties
+          errorMessage = error.data.message || error.data.error || error.data.errorMessage || errorMessage;
+        } else if (typeof error.data === 'string') {
+          // Handle string error response
+          errorMessage = error.data;
+        }
+      } else if (error.message) {
+        // Handle error objects with message property
+        errorMessage = error.message;
+      }
+      
+      setOrderError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setOrderProcessing(false);
     }
@@ -333,6 +370,16 @@ const BuyerMarketplace = () => {
                   KES {parseFloat(currentListing.price.toString()).toLocaleString()} per {currentListing.product.unit}
                 </p>
               </div>
+              
+              {/* Display error message if present */}
+              {orderError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                  <div className="flex items-start">
+                    <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+                    <p className="text-red-700 text-sm">{orderError}</p>
+                  </div>
+                </div>
+              )}
               
               <div className="mb-4">
                 <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">

@@ -1,5 +1,5 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-
+import { prod } from '../../utils/utils';
 // Define types based on the actual API response structure
 export interface FarmerResponse {
   name: string;
@@ -27,7 +27,7 @@ export interface UpdateFarmerPayload {
 export const farmersApi = createApi({
   reducerPath: 'farmersApi',
   baseQuery: fetchBaseQuery({ 
-    baseUrl: 'https://smartfarm-server.onrender.com', // Update with your actual API base URL
+    baseUrl: prod , // Update with your actual API base URL
     prepareHeaders: (headers) => {
       // Add any required headers here
       return headers;
