@@ -1,18 +1,27 @@
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
+import toast from 'react-hot-toast'; // Import toast
 import { RegisterCredentials } from '../../types/auth.types';
 import { Button } from '../common/Button';
 import { Input } from '../common/Input';
 import { api } from '../../store/api/authApi';
 import { setUser } from '../../store/slices/authSlice';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react';
 
 export const RegisterForm = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const [register, { isLoading, error: registerError }] = api.useRegisterMutation();
+  const [registerUser, { isLoading }] = api.useRegisterMutation();
   const { register: registerField, handleSubmit, formState: { errors }} = useForm<RegisterCredentials>();
+
+  // State for handling server errors and success messages
+  const [serverErrors, setServerErrors] = useState<{
+    general?: string;
+    fields?: Record<string, string>;
+  }>({});
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const formatPhoneNumber = (value: string) => {
     if (!value) return value;
@@ -21,6 +30,10 @@ export const RegisterForm = () => {
   };
 
   const onSubmit = async (data: RegisterCredentials) => {
+    // Clear previous errors and messages
+    setServerErrors({});
+    setSuccessMessage(null);
+    
     const formattedData = {
       ...data,
       phoneNumber: formatPhoneNumber(data.phoneNumber)
@@ -32,8 +45,27 @@ export const RegisterForm = () => {
     });
 
     try {
-      const result = await register(formattedData).unwrap();
+      const result = await registerUser(formattedData).unwrap();
       console.log('Registration response:', result);
+
+      // Get success message from response or use default
+      const message = result.message || 'Your account has been successfully created!';
+      
+      // Display success message in the form
+      setSuccessMessage(message);
+      
+      // Display toast notification for success
+      toast.success(message, {
+        duration: 4000,
+        position: 'top-right',
+        icon: '🌾',
+        style: {
+          border: '1px solid #10b981',
+          padding: '16px',
+          color: '#064e3b',
+          backgroundColor: '#ecfdf5'
+        },
+      });
 
       if (result?.token && result?.user) {
         dispatch(setUser({
@@ -41,24 +73,75 @@ export const RegisterForm = () => {
           user: result.user,
           token: result.token
         }));
-        navigate(result.user.role === 'farmer' ? '/farmer/dashboard' : '/buyer/dashboard');
+        
+        // Short delay to show success message before navigation
+        setTimeout(() => {
+          navigate(result.user.role === 'farmer' ? '/farmer/dashboard' : '/buyer/dashboard');
+        }, 1500); // Slightly longer delay to ensure the user sees both the message and toast
       }
     } catch (error: any) {
       console.error('Registration failed:', error);
-    }
-  };
-
-  const getErrorMessage = () => {
-    if (registerError) {
-      if ('data' in registerError) {
-        return (registerError.data as { message?: string })?.message || 'Registration failed';
+      
+      let errorMessage = '';
+      
+      // Handle structured error responses
+      if (error.status === 409) {
+        // Direct handling for conflict errors (typically duplicate email)
+        errorMessage = error.message || 'This email is already registered. Please use a different email or try logging in.';
+        setServerErrors({
+          general: errorMessage
+        });
+      } else if (error.data) {
+        const newErrors: {
+          general?: string;
+          fields?: Record<string, string>;
+        } = {};
+        
+        // Extract general error message
+        if (error.data.message) {
+          errorMessage = error.data.message;
+          newErrors.general = errorMessage;
+        } else if (typeof error.data.error === 'string') {
+          errorMessage = error.data.error;
+          newErrors.general = errorMessage;
+        } else {
+          errorMessage = 'An error occurred during registration. Please try again.';
+          newErrors.general = errorMessage;
+        }
+        
+        // Extract field-specific errors if they exist
+        if (error.data.errors && Array.isArray(error.data.errors)) {
+          newErrors.fields = {};
+          error.data.errors.forEach((fieldError: any) => {
+            if (fieldError.field && fieldError.message) {
+              newErrors.fields![fieldError.field] = fieldError.message;
+            }
+          });
+        }
+        
+        setServerErrors(newErrors);
+      } else {
+        // Handle non-structured errors (network issues, etc.)
+        errorMessage = error.message || 'Unable to connect to the server. Please check your internet connection and try again.';
+        setServerErrors({
+          general: errorMessage
+        });
       }
-      if ('error' in registerError) {
-        return registerError.error;
+      
+      // Show error toast notification
+      if (errorMessage) {
+        toast.error(errorMessage, {
+          duration: 5000,
+          position: 'top-right',
+          style: {
+            border: '1px solid #ef4444',
+            padding: '16px',
+            color: '#7f1d1d',
+            backgroundColor: '#fef2f2'
+          },
+        });
       }
-      return 'An unexpected error occurred';
     }
-    return null;
   };
 
   return (
@@ -105,9 +188,19 @@ export const RegisterForm = () => {
           </p>
         </div>
 
-        {getErrorMessage() && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 rounded-lg text-sm">
-            {getErrorMessage()}
+        {/* Success Message */}
+        {successMessage && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-100 rounded-lg flex items-start">
+            <CheckCircle className="w-5 h-5 text-green-500 mr-2 flex-shrink-0" />
+            <p className="text-green-800 text-sm">{successMessage}</p>
+          </div>
+        )}
+
+        {/* General Error Message */}
+        {serverErrors.general && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-lg flex items-start">
+            <AlertCircle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" />
+            <p className="text-red-800 text-sm">{serverErrors.general}</p>
           </div>
         )}
 
@@ -117,7 +210,7 @@ export const RegisterForm = () => {
             {...registerField('name', {
               required: 'Name is required'
             })}
-            error={errors.name?.message}
+            error={errors.name?.message || serverErrors.fields?.name}
           />
 
           <Input
@@ -130,7 +223,7 @@ export const RegisterForm = () => {
                 message: 'Invalid email address'
               }
             })}
-            error={errors.email?.message}
+            error={errors.email?.message || serverErrors.fields?.email}
           />
 
           <Input
@@ -149,7 +242,7 @@ export const RegisterForm = () => {
                 e.target.value = formatPhoneNumber(e.target.value);
               }
             })}
-            error={errors.phoneNumber?.message}
+            error={errors.phoneNumber?.message || serverErrors.fields?.phoneNumber}
           />
 
           <div className="space-y-3">
@@ -176,8 +269,8 @@ export const RegisterForm = () => {
                 <span className="ml-3 font-medium text-gray-900">Buyer</span>
               </label>
             </div>
-            {errors.role && (
-              <p className="text-red-500 text-sm mt-1">{errors.role.message}</p>
+            {(errors.role || serverErrors.fields?.role) && (
+              <p className="text-red-500 text-sm mt-1">{errors.role?.message || serverErrors.fields?.role}</p>
             )}
           </div>
 
@@ -191,7 +284,7 @@ export const RegisterForm = () => {
                 message: 'Password must be at least 6 characters'
               }
             })}
-            error={errors.password?.message}
+            error={errors.password?.message || serverErrors.fields?.password}
           />
 
           <Button

@@ -44,7 +44,13 @@ export interface RegisterCredentials {
 export interface AuthResponse {
   user: User;
   token: string;
-  isAuthenticated: boolean; 
+  isAuthenticated: boolean;
+  message?: string; 
+  status?: string; 
+  errors?: Array<{  
+    field: string;
+    message: string;
+  }>;
 }
 
 // Current auth state
