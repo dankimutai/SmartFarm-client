@@ -12,7 +12,6 @@ import {
   ArrowLeft,
   User,
   CreditCard,
-  BarChart2
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store/store';
@@ -30,7 +29,6 @@ const navItems: NavItem[] = [
   { name: 'Products', path: '/admin/products', icon: <Package className="w-5 h-5" /> },
   { name: 'Orders', path: '/admin/orders', icon: <ShoppingBag className="w-5 h-5" /> },
   { name: 'Transactions', path: '/admin/transactions', icon: <CreditCard className="w-5 h-5" /> },
-  { name: 'Analytics', path: '/admin/analytics', icon: <BarChart2 className="w-5 h-5" /> },
   { name: 'Settings', path: '/admin/settings', icon: <Settings className="w-5 h-5" /> },
 ];
 
