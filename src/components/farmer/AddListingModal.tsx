@@ -4,7 +4,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '../common/Button';
 import { Input } from '../common/Input';
 import { Label } from '../common/Label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { productsApi } from '../../store/api/productsApi';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store/store';
@@ -43,12 +42,9 @@ const AddListingModal = ({ isOpen, onClose, productId, onSuccess }: AddListingMo
     }
   }, [farmerId, productId]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleSelectChange = (name: string, value: string | number) => {
-    setFormData({ ...formData, [name]: value });
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const value = e.target.name === 'productId' ? Number(e.target.value) : e.target.value;
+    setFormData({ ...formData, [e.target.name]: value });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -72,9 +68,7 @@ const AddListingModal = ({ isOpen, onClose, productId, onSuccess }: AddListingMo
           availableDate: new Date().toISOString().split('T')[0],
           status: 'active' as const
         });
-        if (onSuccess) {
-          onSuccess();
-        }
+        if (onSuccess) onSuccess();
         onClose();
       }
     } catch (error) {
@@ -90,28 +84,25 @@ const AddListingModal = ({ isOpen, onClose, productId, onSuccess }: AddListingMo
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
+
             <div className="grid gap-2">
               <Label htmlFor="productId">Product</Label>
-              <Select
-                value={formData.productId.toString()}
-                onValueChange={(value) => handleSelectChange('productId', Number(value))}
+              <select
+                id="productId"
+                name="productId"
+                value={formData.productId}
+                onChange={handleChange}
                 disabled={!!productId}
+                required
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select product" />
-                </SelectTrigger>
-                <SelectContent
-                  position="popper"
-                  className="w-full z-[9999]"
-                  style={{ maxHeight: '200px', overflowY: 'auto' }}
-                >
-                  {products.map(product => (
-                    <SelectItem key={product.id} value={product.id.toString()}>
-                      {product.name} ({product.unit})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <option value={0} disabled>Select product</option>
+                {products.map(product => (
+                  <option key={product.id} value={product.id}>
+                    {product.name} ({product.unit})
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="grid gap-2">
@@ -151,6 +142,7 @@ const AddListingModal = ({ isOpen, onClose, productId, onSuccess }: AddListingMo
                 required
               />
             </div>
+
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
