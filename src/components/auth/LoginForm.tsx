@@ -51,11 +51,15 @@ export const LoginForm = () => {
       });
       
       // Store auth data in Redux
-      dispatch(setUser({
-        isAuthenticated: true,
-        user: result.user,
-        token: result.token
-      }));
+      ddispatch(setUser({
+  isAuthenticated: true,
+  user: {
+    ...result.user,
+    farmerId: result.user.farmerId,
+    buyerId: result.user.buyerId,
+  },
+  token: result.token
+}));
 
       // Short delay to show success message before navigation
       setTimeout(() => {
