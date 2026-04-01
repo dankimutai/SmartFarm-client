@@ -95,26 +95,25 @@ const AddListingModal = ({ isOpen, onClose, productId, onSuccess }: AddListingMo
           <DialogTitle>Add New Listing</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="productId">Product</Label>
-              <Select 
-                value={formData.productId.toString()} 
-                onValueChange={(value) => handleSelectChange('productId', Number(value))}
-                disabled={!!productId} // Disable if productId is provided
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select product" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map(product => (
-                    <SelectItem key={product.id} value={product.id.toString()}>
-                      {product.name} ({product.unit})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="grid gap-2">
+  <Label htmlFor="productId">Product</Label>
+  <Select
+    value={formData.productId.toString()}
+    onValueChange={(value) => handleSelectChange('productId', Number(value))}
+    disabled={!!productId}
+  >
+    <SelectTrigger className="w-full">
+      <SelectValue placeholder="Select product" />
+    </SelectTrigger>
+    <SelectContent className="z-[9999] max-h-[200px] overflow-y-auto">
+      {products.map(product => (
+        <SelectItem key={product.id} value={product.id.toString()}>
+          {product.name} ({product.unit})
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+</div>
             
             <div className="grid gap-2">
               <Label htmlFor="quantity">Quantity</Label>
