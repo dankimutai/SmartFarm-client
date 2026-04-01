@@ -128,7 +128,7 @@ const ProductManagement = () => {
     }
   });
 
-  if (!user || user.role !== 'farmer' || !farmerId) {
+  if (!user || user.role !== 'farmer') {
     return (
       <div className="p-4 bg-red-50 text-red-600 rounded-lg">
         Access denied. This page is only for farmers.
