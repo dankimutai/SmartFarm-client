@@ -12,14 +12,14 @@ import { RootState } from '../../store/store';
 type AddListingModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  productId?: number; // Optional product ID if coming from Add Product flow
-  onSuccess?: () => void; // Callback for when listing is successfully added
+  productId?: number;
+  onSuccess?: () => void;
 };
 
 const AddListingModal = ({ isOpen, onClose, productId, onSuccess }: AddListingModalProps) => {
   const user = useSelector((state: RootState) => state.auth.user);
   const farmerId = user?.farmerId;
-  
+
   const [formData, setFormData] = useState({
     farmerId: farmerId || 0,
     productId: productId || 0,
@@ -28,13 +28,12 @@ const AddListingModal = ({ isOpen, onClose, productId, onSuccess }: AddListingMo
     availableDate: new Date().toISOString().split('T')[0],
     status: 'active' as const
   });
-  
+
   const { data: productsResponse } = productsApi.useGetProductsQuery({});
   const products = productsResponse?.data || [];
-  
+
   const [addListing, { isLoading }] = productsApi.useAddListingMutation();
-  
-  // Update farmerId and productId when they change
+
   useEffect(() => {
     if (farmerId) {
       setFormData(prev => ({ ...prev, farmerId }));
@@ -43,30 +42,28 @@ const AddListingModal = ({ isOpen, onClose, productId, onSuccess }: AddListingMo
       setFormData(prev => ({ ...prev, productId }));
     }
   }, [farmerId, productId]);
-  
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
-  
+
   const handleSelectChange = (name: string, value: string | number) => {
     setFormData({ ...formData, [name]: value });
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Now we can send the strings directly since our API definition expects strings
       const result = await addListing({
         farmerId: formData.farmerId,
         productId: formData.productId,
-        quantity: formData.quantity, // Already a string from the input
-        price: formData.price, // Already a string from the input
+        quantity: formData.quantity,
+        price: formData.price,
         availableDate: new Date(formData.availableDate).toISOString(),
         status: formData.status
       }).unwrap();
-      
+
       if (result.success) {
-        // Reset form data for next time
         setFormData({
           farmerId: farmerId || 0,
           productId: 0,
@@ -75,19 +72,16 @@ const AddListingModal = ({ isOpen, onClose, productId, onSuccess }: AddListingMo
           availableDate: new Date().toISOString().split('T')[0],
           status: 'active' as const
         });
-        
-        // Notify parent component if needed
         if (onSuccess) {
           onSuccess();
         }
-        
         onClose();
       }
     } catch (error) {
       console.error('Failed to add listing:', error);
     }
   };
-  
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
@@ -95,30 +89,35 @@ const AddListingModal = ({ isOpen, onClose, productId, onSuccess }: AddListingMo
           <DialogTitle>Add New Listing</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <div className="grid gap-2">
-  <Label htmlFor="productId">Product</Label>
-  <Select
-    value={formData.productId.toString()}
-    onValueChange={(value) => handleSelectChange('productId', Number(value))}
-    disabled={!!productId}
-  >
-    <SelectTrigger className="w-full">
-      <SelectValue placeholder="Select product" />
-    </SelectTrigger>
-    <SelectContent className="z-[9999] max-h-[200px] overflow-y-auto">
-      {products.map(product => (
-        <SelectItem key={product.id} value={product.id.toString()}>
-          {product.name} ({product.unit})
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
-</div>
-            
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="productId">Product</Label>
+              <Select
+                value={formData.productId.toString()}
+                onValueChange={(value) => handleSelectChange('productId', Number(value))}
+                disabled={!!productId}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select product" />
+                </SelectTrigger>
+                <SelectContent
+                  position="popper"
+                  className="w-full z-[9999]"
+                  style={{ maxHeight: '200px', overflowY: 'auto' }}
+                >
+                  {products.map(product => (
+                    <SelectItem key={product.id} value={product.id.toString()}>
+                      {product.name} ({product.unit})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid gap-2">
               <Label htmlFor="quantity">Quantity</Label>
-              <Input 
-                id="quantity" 
+              <Input
+                id="quantity"
                 name="quantity"
                 type="number"
                 step="0.01"
@@ -127,11 +126,11 @@ const AddListingModal = ({ isOpen, onClose, productId, onSuccess }: AddListingMo
                 required
               />
             </div>
-            
+
             <div className="grid gap-2">
               <Label htmlFor="price">Price (KES)</Label>
-              <Input 
-                id="price" 
+              <Input
+                id="price"
                 name="price"
                 type="number"
                 step="0.01"
@@ -140,11 +139,11 @@ const AddListingModal = ({ isOpen, onClose, productId, onSuccess }: AddListingMo
                 required
               />
             </div>
-            
+
             <div className="grid gap-2">
               <Label htmlFor="availableDate">Available Date</Label>
-              <Input 
-                id="availableDate" 
+              <Input
+                id="availableDate"
                 name="availableDate"
                 type="date"
                 value={formData.availableDate}
