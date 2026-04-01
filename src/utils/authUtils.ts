@@ -6,8 +6,8 @@
 
 // Environment configuration
 export const prodDomain = import.meta.env.PROD 
-  ? 'https://smartfarm-production-d317.up.railway.app' 
-  : 'https://smartfarm-production-d317.up.railway.app';
+  ? 'https://smartfarm-production-87da.up.railway.app' 
+  : 'https://smartfarm-production-87da.up.railway.app';
 
 // Error formatting types
 type ErrorResponse = {

@@ -7,4 +7,4 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 
-export const prod = "https://smartfarm-production-d317.up.railway.app"
+export const prod = "https://smartfarm-production-87da.up.railway.app"
