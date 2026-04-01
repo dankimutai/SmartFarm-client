@@ -7,4 +7,4 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 
-export const prod = "https://smartfarm-a3h7hjf7b8b0d8h9.southafricanorth-01.azurewebsites.net"
+export const prod = "https://smartfarm-production-d317.up.railway.app"
