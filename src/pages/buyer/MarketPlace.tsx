@@ -287,11 +287,14 @@ const BuyerMarketplace = () => {
           {data.data.map((listing: Listing) => (
             <Card key={listing.id} className="overflow-hidden hover:shadow-lg transition-shadow">
               <div className="relative">
-                <img
-                  src={listing.product.imageUrl || '/api/placeholder/400/300'}
-                  alt={listing.product.name}
-                  className="w-full h-48 object-cover"
-                />
+               <img
+  src={listing.product.imageUrl || `https://placehold.co/400x200/16a34a/white?text=${listing.product.name}`}
+  alt={listing.product.name}
+  className="w-full h-48 object-cover"
+  onError={(e) => {
+    e.currentTarget.src = `https://placehold.co/400x200/16a34a/white?text=${listing.product.name}`;
+  }}
+/>
                 <button className="absolute top-2 right-2 p-2 bg-white rounded-full shadow-md hover:bg-gray-100">
                   <Heart className="h-4 w-4 text-gray-600" />
                 </button>
