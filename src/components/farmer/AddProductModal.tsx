@@ -33,17 +33,23 @@ const AddProductModal = ({ isOpen, onClose, onProductAdded }: AddProductModalPro
   };
   
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const result = await addProduct(formData).unwrap();
-      if (result.success && result.data) {
-        onProductAdded(result.data.id);
-        onClose();
-      }
-    } catch (error) {
-      console.error('Failed to add product:', error);
+  e.preventDefault();
+  try {
+    const productData = {
+      name: formData.name,
+      category: formData.category,
+      unit: formData.unit,
+      ...(formData.imageUrl ? { imageUrl: formData.imageUrl } : {})
+    };
+    const result = await addProduct(productData).unwrap();
+    if (result.success && result.data) {
+      onProductAdded(result.data.id);
+      onClose();
     }
-  };
+  } catch (error) {
+    console.error('Failed to add product:', error);
+  }
+};
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
