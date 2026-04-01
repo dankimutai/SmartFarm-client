@@ -32,16 +32,18 @@ const AddProductModal = ({ isOpen, onClose, onProductAdded }: AddProductModalPro
     setFormData({ ...formData, [name]: value });
   };
   
-  const handleSubmit = async (e: React.FormEvent) => {
+ const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   try {
-    const productData = {
+    const productData: { name: string; category: string; unit: string; imageUrl?: string } = {
       name: formData.name,
       category: formData.category,
       unit: formData.unit,
-      ...(formData.imageUrl ? { imageUrl: formData.imageUrl } : {})
     };
-    const result = await addProduct(productData).unwrap();
+    if (formData.imageUrl) {
+      productData.imageUrl = formData.imageUrl;
+    }
+    const result = await addProduct(productData as any).unwrap();
     if (result.success && result.data) {
       onProductAdded(result.data.id);
       onClose();
