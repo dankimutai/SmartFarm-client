@@ -51,7 +51,7 @@ export const LoginForm = () => {
       });
       
       // Store auth data in Redux
-      ddispatch(setUser({
+      dispatch(setUser({
   isAuthenticated: true,
   user: {
     ...result.user,
